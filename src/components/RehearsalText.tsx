@@ -1,0 +1,113 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { normalizeText } from '@/engine/normalize';
+import { countTextSyllables } from '@/engine/syllables';
+
+export function RehearsalText({ text, syllablesRead, autoScroll, children }: {
+  text: string;
+  syllablesRead: number | null;
+  autoScroll: boolean;
+  children: ReactNode;
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const expectedScrollTop = useRef(0);
+  const pausedRef = useRef(false);
+  const [paused, setPaused] = useState(false);
+  const chunks = useMemo(() => {
+    let endSyllable = 0;
+    return (text.match(/\s+|\S+/g) ?? []).map((raw) => {
+      endSyllable += countTextSyllables(normalizeText(raw).map((token) => token.word));
+      return { raw, endSyllable };
+    });
+  }, [text]);
+
+  const pause = useCallback(() => {
+    pausedRef.current = true;
+    setPaused(true);
+  }, []);
+
+  useEffect(() => {
+    pausedRef.current = false;
+    setPaused(false);
+    expectedScrollTop.current = viewportRef.current?.scrollTop ?? 0;
+  }, [autoScroll, text]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!autoScroll || !viewport) return;
+    const onScroll = () => {
+      if (Math.abs(viewport.scrollTop - expectedScrollTop.current) > 1) pause();
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && event.deltaY !== 0 && viewport.scrollHeight > viewport.clientHeight) pause();
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length === 1 && viewport.scrollHeight > viewport.clientHeight) pause();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.defaultPrevented && event.target === viewport && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pause();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const scrollbarStart = viewport.getBoundingClientRect().left + viewport.clientLeft + viewport.clientWidth;
+      if (event.button === 0 && event.target === viewport && event.clientX >= scrollbarStart && viewport.scrollHeight > viewport.clientHeight) pause();
+    };
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    viewport.addEventListener('wheel', onWheel, { passive: true });
+    viewport.addEventListener('touchmove', onTouchMove, { passive: true });
+    viewport.addEventListener('keydown', onKeyDown);
+    viewport.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      viewport.removeEventListener('scroll', onScroll);
+      viewport.removeEventListener('wheel', onWheel);
+      viewport.removeEventListener('touchmove', onTouchMove);
+      viewport.removeEventListener('keydown', onKeyDown);
+      viewport.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [autoScroll, pause]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const header = headerRef.current;
+    const paragraph = textRef.current;
+    if (!autoScroll || pausedRef.current || syllablesRead === null || !viewport || !header || !paragraph || viewport.clientHeight === 0) return;
+    const next = chunks.findIndex((chunk) => chunk.endSyllable > syllablesRead);
+    const word = paragraph.children[next < 0 ? chunks.length - 1 : next];
+    if (!word) return;
+    const headerHeight = header.getBoundingClientRect().height;
+    const followY = headerHeight + Math.max(0, viewport.clientHeight - headerHeight) * 0.35;
+    const wordY = viewport.scrollTop + word.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+    viewport.scrollTop = Math.max(0, Math.min(wordY - followY, viewport.scrollHeight - viewport.clientHeight));
+    expectedScrollTop.current = viewport.scrollTop;
+  }, [autoScroll, syllablesRead, chunks, paused]);
+
+  return (
+    <div ref={viewportRef} className="max-h-[65vh] overflow-y-auto rounded-lg text-card-foreground [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
+      <div ref={headerRef} className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
+        {children}
+        {autoScroll && (
+          <div className="flex h-8 w-full items-center justify-between gap-2">
+            {paused && (
+              <>
+                <span role="status" className="truncate text-sm text-muted-foreground">Śledzenie wstrzymane</span>
+                <Button className="shrink-0" size="sm" variant="outline" onClick={() => {
+                  pausedRef.current = false;
+                  setPaused(false);
+                }}>
+                  Wznów śledzenie
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <CardContent className="py-5">
+        <p ref={textRef} className="text-xl md:text-2xl leading-relaxed md:leading-relaxed whitespace-pre-wrap">
+          {chunks.map((chunk, index) => <span key={index}>{chunk.raw}</span>)}
+        </p>
+      </CardContent>
+    </div>
+  );
+}

@@ -1,27 +1,46 @@
 # CzystaMowa
 
-Trener tempa mówienia i oddechu po polsku. Działa w całości w przeglądarce, bez modeli AI – nagrania i historia
-sesji nie opuszczają komputera.
+Trener wystąpień i prezentacji po polsku: ćwicz wygłaszanie własnego tekstu, kontrolując tempo i oddech. Działa
+w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opuszczają komputera.
 
 ## Funkcje
 
-- **Na żywo podczas nagrania**: prędkościomierz tempa (sylaby/s i słowa/min), pasek oddechu, przebieg fali,
+- **Biblioteka prezentacji**: zapisywanie tekstów wystąpień z tytułem i opcjonalnym limitem czasu; aplikacja
+  szacuje czas mówienia w Twoim tempie docelowym i ostrzega, gdy tekst nie mieści się w limicie.
+  Przycisk „Historia” przy każdej prezentacji pokazuje wszystkie jej próby, od najnowszej, z datą,
+  czasem trwania, tempem i przejściem do raportu. Historia jest też dostępna z raportu próby.
+- **Próba prezentacji**: przycisk „Ćwicz” otwiera tekst prezentacji do czytania na głos; każda próba jest
+  zapisywana jako sesja powiązana z prezentacją.
+  Tekst podczas ćwiczenia zachowuje oryginalne podziały wierszy i puste linie.
+  Domyślnie przewija się automatycznie zgodnie z postępem szacowanym z wykrytych sylab,
+  bez przewijania podczas ciszy i kalibracji. Przełącznik na ekranie treningu pozwala wyłączyć
+  tę funkcję; wybór jest zapamiętywany. Nie jest to rozpoznawanie wypowiadanych słów.
+  Ręczne przewinięcie wstrzymuje śledzenie. Przycisk „Wznów śledzenie” w przypiętym nagłówku
+  przywraca przewijanie do aktualnej szacowanej pozycji czytania.
+  Licznik przy tekście i w raporcie pokazuje czas całej sesji (z pauzami i kalibracją mikrofonu),
+  pozostały czas lub przekroczenie limitu. Raport zachowuje limit obowiązujący na początku próby;
+  starsze sesje bez zapisanego limitu pokazują tylko czas trwania.
+- **Na żywo podczas nagrania**: panel tempa (sylaby/s), pasek oddechu, przebieg fali,
   ostrzeżenia o szumie i przesterowaniu. Po przekroczeniu limitu mówienia bez oddechu aplikacja odtwarza krótki
   dźwięk (i wibrację na telefonie).
-  W trybie czytania kolorowa ramka tekstu i przypięty nad nim status tempa pozwalają śledzić tempo bez odrywania
-  wzroku od treści.
-- **Tryby**: czytanie tekstu (15 gotowych tekstów lub własny), swobodne mówienie (podpowiedzi tematów, nagranie
-  kończy przycisk „Skończyłem”), kalibracja.
+  Kolorowa ramka tekstu i przypięty nad nim status tempa pozwalają śledzić tempo bez odrywania wzroku od treści.
+  Tempo ma osobny kolorowy panel z dużą wartością i wyraźnym statusem.
+  Obok niego stale widoczny jest panel oddechu, również podczas uruchamiania i kalibracji mikrofonu.
+  Panele mają stały układ, a zmiany komunikatów nie przesuwają tekstu. Ostrzeżenia oddechu zmieniają
+  kolor bez pulsowania; pasek i licznik pokazują czas mówienia bez pauzy.
+- **Kalibracja**: minuta czytania znanego tekstu dopasowuje pomiar do głosu i mikrofonu.
 - **Raport sesji**: tempo mowy, liczba oddechów, najdłuższa fraza bez oddechu, krótkie wskazówki z odsłuchem
   fragmentu, oś czasu (fale, frazy i pauzy oddechowe, tempo każdej frazy) oraz tabela fraz.
-- **Pulpit**: trendy tempa i najdłuższej frazy, historia sesji.
+  Oś czasu przewija się automatycznie podczas odsłuchu, utrzymując wskaźnik czasu w widocznym obszarze.
+- **Pulpit**: biblioteka prezentacji z dodawaniem, edycją i uruchamianiem prób, a poniżej historia sesji.
+  Kalibracja jest dostępna z nagłówka pulpitu. Dawny adres `/presentations` przekierowuje na pulpit.
 
 ## Jak to działa
 
 | Warstwa | Technologia |
 |---|---|
 | UI | Vite, React 19, TypeScript, Tailwind v4, react-router |
-| Stan / dane | Zustand (ustawienia w `localStorage`), Dexie / IndexedDB (sesje i nagrania) |
+| Stan / dane | Zustand (ustawienia w `localStorage`), Dexie / IndexedDB (prezentacje, sesje i nagrania) |
 | Audio | `getUserMedia` + AudioWorklet (16 kHz), Silero VAD (onnxruntime-web), MediaRecorder |
 | Analiza | `src/engine/` – czysty TypeScript (testy w `vitest`) |
 
@@ -51,7 +70,7 @@ Aplikacja wymaga **cross-origin isolation** (SharedArrayBuffer dla wielowątkowe
 i `preview` ustawiają nagłówki COOP/COEP; na hostingu statycznym trzeba je skonfigurować lub użyć
 `coi-serviceworker`. Mikrofon działa tylko przez HTTPS lub na `localhost`.
 
-Aplikacja używa adresów bez `#` (np. `/reading`, `/speaking`, `/session/<id>`). Na hostingu należy skonfigurować
+Aplikacja używa adresów bez `#` (np. `/presentations`, `/presentations/<id>/rehearse`, `/session/<id>`). Na hostingu należy skonfigurować
 fallback SPA (zwracanie `index.html` dla podstron); Vite robi to automatycznie.
 
 ## Prywatność
@@ -70,7 +89,7 @@ scripts/            kopiowanie zasobów WASM i VAD
 src/audio/          mikrofon, worklet, VAD, analiza na żywo, dekodowanie
 src/engine/         analiza: segmentacja, jądra sylab, frazy, pauzy, tempo, wskazówki
 src/lib/            zapis i przeliczanie sesji, sygnał oddechu, motyw, etykiety
-src/pages/          pulpit, czytanie, swobodne mówienie, kalibracja, raport, ustawienia
+src/pages/          pulpit, prezentacje (lista, edytor, próba), kalibracja, raport, ustawienia
 src/components/     HUD, raport, komponenty UI
-src/data/           teksty do czytania i tekst kalibracyjny (treści autorskie)
+src/data/           tekst kalibracyjny (treść autorska)
 ```

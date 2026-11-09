@@ -22,7 +22,7 @@ export default function Settings() {
   }, []);
 
   const clear = async () => {
-    if (!confirm('Usunąć wszystkie sesje, nagrania i kalibrację? Tej operacji nie można cofnąć.')) return;
+    if (!confirm('Usunąć wszystkie prezentacje, sesje, nagrania i kalibrację? Tej operacji nie można cofnąć.')) return;
     await clearAllData();
     s.set({ liveSyllableCorrection: 1, syllablesPerWord: 2.3 });
     setMsg('Dane zostały usunięte.');
@@ -105,7 +105,7 @@ export default function Settings() {
       <Card>
         <CardHeader><CardTitle>Dane</CardTitle><CardDescription>Wszystkie dane są przechowywane wyłącznie lokalnie (IndexedDB).</CardDescription></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="destructive" onClick={() => void clear()}>Usuń wszystkie sesje i kalibrację</Button>
+          <Button variant="destructive" onClick={() => void clear()}>Usuń wszystkie dane</Button>
           <Button variant="outline" onClick={() => { if (confirm('Przywrócić ustawienia domyślne?')) s.reset(); }}>Przywróć ustawienia domyślne</Button>
         </CardContent>
       </Card>

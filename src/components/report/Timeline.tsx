@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Phrase, PhraseTempo, TrainingSession } from '@/types';
 import { T } from '@/engine/thresholds';
 
@@ -34,6 +34,7 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
   onSeek: (ms: number) => void;
   onSelectPhrase: (i: number) => void;
 }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
   const durMs = Math.max(1, session.durationSeconds * 1000);
   const W = Math.max(640, (durMs / 1000) * PX_PER_S);
   const x = (ms: number) => (ms / durMs) * W;
@@ -41,6 +42,19 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
   const tr = session.tracks;
   const [lo, hi] = session.settings.targetArticulationRate;
   const maxMs = session.settings.maxContinuousSpeechSeconds * 1000;
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || viewport.clientWidth === 0) return;
+    const playheadX = (Math.min(durMs, Math.max(0, currentMs)) / durMs) * W;
+    const followX = viewport.clientWidth * 0.8;
+    if (playheadX < viewport.scrollLeft || playheadX > viewport.scrollLeft + followX) {
+      viewport.scrollLeft = Math.max(0, Math.min(
+        playheadX - followX,
+        viewport.scrollWidth - viewport.clientWidth,
+      ));
+    }
+  }, [currentMs, durMs, W]);
 
   const wave = useMemo(() => {
     const wf = tr.waveform;
@@ -61,7 +75,7 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
 
   return (
     <div className="space-y-2">
-      <div className="overflow-x-auto rounded-md border bg-card">
+      <div ref={viewportRef} className="overflow-x-auto rounded-md border bg-card">
         <svg
           width={W}
           height={H}

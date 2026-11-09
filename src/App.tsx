@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { NavLink, Route, Routes } from 'react-router';
-import { AudioLines, BookOpenText, LayoutDashboard, Loader2, MessageCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Navigate, NavLink, Route, Routes } from 'react-router';
+import { AudioLines, LayoutDashboard, Loader2, Settings as SettingsIcon } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/overlay';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useApplyTheme } from '@/lib/theme';
@@ -10,15 +10,14 @@ import { cn } from '@/lib/utils';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Calibration = lazy(() => import('@/pages/Calibration'));
-const TrainReading = lazy(() => import('@/pages/TrainReading'));
-const TrainSpeaking = lazy(() => import('@/pages/TrainSpeaking'));
 const SessionReport = lazy(() => import('@/pages/SessionReport'));
+const PresentationEditor = lazy(() => import('@/pages/PresentationEditor'));
+const PresentationRehearsal = lazy(() => import('@/pages/PresentationRehearsal'));
+const PresentationHistory = lazy(() => import('@/pages/PresentationHistory'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const NAV = [
   { to: '/', label: 'Pulpit', icon: LayoutDashboard, end: true },
-  { to: '/reading', label: 'Czytanie', icon: BookOpenText },
-  { to: '/speaking', label: 'Swobodne mówienie', icon: MessageCircle },
   { to: '/settings', label: 'Ustawienia', icon: SettingsIcon },
 ];
 
@@ -72,8 +71,12 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/calibration" element={<Calibration />} />
-              <Route path="/reading" element={<TrainReading />} />
-              <Route path="/speaking" element={<TrainSpeaking />} />
+              <Route path="/presentations" element={<Navigate to="/" replace />} />
+              <Route path="/presentations/:id" element={<PresentationEditor />} />
+              <Route path="/presentations/:id/rehearse" element={<PresentationRehearsal />} />
+              <Route path="/presentations/:id/history" element={<PresentationHistory />} />
+              <Route path="/reading" element={<Navigate to="/" replace />} />
+              <Route path="/speaking" element={<Navigate to="/" replace />} />
               <Route path="/session/:id" element={<SessionReport />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Dashboard />} />

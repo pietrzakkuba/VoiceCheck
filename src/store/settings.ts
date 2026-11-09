@@ -9,6 +9,7 @@ export interface SettingsState extends AppSettings {
   /** User's mean syllables per word (WPM conversion), set by calibration. */
   syllablesPerWord: number;
   micDeviceId: string | null;
+  readingAutoScroll: boolean;
   set: (patch: Partial<SettingsState>) => void;
   reset: () => void;
 }
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: PersistedSettings = {
   liveSyllableCorrection: 1,
   syllablesPerWord: 2.3,
   micDeviceId: null,
+  readingAutoScroll: true,
 };
 
 const KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof PersistedSettings)[];

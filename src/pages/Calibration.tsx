@@ -116,7 +116,7 @@ export default function Calibration() {
         </Alert>
       )}
       {!result && <RecordControls phase={ts.phase} onStart={start} onStop={stop} startLabel="Start" />}
-      {active && <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} compact />}
+      {active && <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} />}
     </div>
   );
 }

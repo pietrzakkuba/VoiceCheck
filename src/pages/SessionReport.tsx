@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { AlertTriangle, CheckCircle2, Download, Info, Loader2, Pause, Play, RefreshCw, Trash2, Wind } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, History, Info, Loader2, Mic, Pause, Play, RefreshCw, Trash2, Wind } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SessionTime } from '@/components/SessionTime';
 import { Alert } from '@/components/ui/primitives';
 import { Timeline } from '@/components/report/Timeline';
 import { rateZone } from '@/components/audio/SpeedometerGauge';
@@ -57,6 +58,8 @@ export default function SessionReport() {
   const debug = params.get('debug') === '1';
   const nav = useNavigate();
   const session = useLiveQuery(() => (id ? db.sessions.get(id) : undefined), [id], null);
+  const presentationId = session?.presentationId;
+  const presentation = useLiveQuery(() => (presentationId ? db.presentations.get(presentationId) : undefined), [presentationId]);
   const settings = useSettings();
   const audio = useSessionAudio(session?.audioKey, session?.audioOffsetMs ?? 0);
   const [busy, setBusy] = useState(false);
@@ -121,15 +124,22 @@ export default function SessionReport() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Raport sesji</h1>
+          <h1 className="text-2xl font-semibold">Raport sesji{presentation ? `: ${presentation.title}` : ''}</h1>
           <p className="text-sm text-muted-foreground">
             {MODE_LABELS[session.mode]} · {new Date(session.timestamp).toLocaleString('pl-PL')} · {formatMs(session.durationSeconds * 1000)} · mikrofon: {session.deviceLabel || 'nieznany'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={audio.toggle} disabled={!audio.available}>
-            {audio.playing ? <Pause className="size-4" /> : <Play className="size-4" />} {audio.playing ? 'Pauza' : 'Odtwórz'}
-          </Button>
+          {presentation && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/presentations/${presentation.id}/history`}><History className="size-4" aria-hidden /> Historia prezentacji</Link>
+            </Button>
+          )}
+          {presentation && (
+            <Button size="sm" asChild>
+              <Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Ćwicz ponownie</Link>
+            </Button>
+          )}
           {debug && <Button variant="outline" size="sm" onClick={exportJson}><Download className="size-4" /> JSON</Button>}
           <Button variant="ghost" size="sm" onClick={() => void remove()} aria-label="Usuń sesję"><Trash2 className="size-4" /></Button>
         </div>
@@ -149,6 +159,12 @@ export default function SessionReport() {
       {audio.available === false && <Alert variant="warn">Nagranie tej sesji nie jest dostępne – odtwarzanie wyłączone.</Alert>}
       {err && <Alert variant="bad">{err}</Alert>}
       {session.warnings.map((w, i) => <Alert key={i} variant="warn">{w}</Alert>)}
+
+      <Card>
+        <CardContent>
+          <SessionTime seconds={session.durationSeconds} targetSeconds={session.targetDurationSeconds} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Stat
@@ -199,7 +215,12 @@ export default function SessionReport() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Oś czasu</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>Oś czasu</CardTitle>
+            <Button variant="outline" size="sm" onClick={audio.toggle} disabled={!audio.available}>
+              {audio.playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />} {audio.playing ? 'Pauza' : 'Odtwórz'}
+            </Button>
+          </div>
           <CardDescription>
             Środkowy pasek to frazy między oddechami, dolny — tempo każdej frazy na tle Twojego celu. Kliknij, aby przewinąć lub odsłuchać frazę.
           </CardDescription>

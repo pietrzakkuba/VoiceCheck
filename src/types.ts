@@ -1,6 +1,7 @@
 // Data schema: speech tempo and breathing only.
 
-export type TrainingMode = 'calibration' | 'reading' | 'free_speech';
+/** 'reading' and 'free_speech' are legacy modes kept only for sessions recorded before the presentation library. */
+export type TrainingMode = 'calibration' | 'presentation' | 'reading' | 'free_speech';
 
 export interface SpeechSegment {
   startMs: number;
@@ -86,6 +87,10 @@ export interface TrainingSession {
   timestamp: number;
   mode: TrainingMode;
   targetText?: string;
+  /** Presentation this session was a rehearsal of. */
+  presentationId?: string;
+  /** Presentation time limit at the moment recording started. */
+  targetDurationSeconds?: number;
   deviceLabel: string;
   durationSeconds: number;
   audioKey: string;
@@ -98,6 +103,17 @@ export interface TrainingSession {
   tips: Tip[];
   tracks: SessionTracks;
   warnings: string[];
+}
+
+/** A text the user prepares to present and rehearses repeatedly. */
+export interface Presentation {
+  id: string;
+  title: string;
+  text: string;
+  /** Planned speaking time; undefined = no time limit. */
+  targetDurationSeconds?: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface UserBaseline {

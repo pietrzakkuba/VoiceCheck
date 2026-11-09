@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { TrainingSession, UserBaseline } from '@/types';
+import type { Presentation, TrainingSession, UserBaseline } from '@/types';
 
 export interface AudioRecord {
   key: string;
@@ -16,6 +16,7 @@ export const db = new Dexie('clearvoice') as Dexie & {
   sessions: EntityTable<TrainingSession, 'id'>;
   audio: EntityTable<AudioRecord, 'key'>;
   baseline: EntityTable<BaselineRecord, 'id'>;
+  presentations: EntityTable<Presentation, 'id'>;
 };
 
 db.version(1).stores({
@@ -28,6 +29,30 @@ db.version(1).stores({
 db.version(2).stores({
   sessions: 'id, timestamp, mode, schema',
 });
+
+// v3: presentation library; sessions can reference the presentation they rehearse.
+db.version(3).stores({
+  sessions: 'id, timestamp, mode, schema, presentationId',
+  presentations: 'id, updatedAt',
+});
+
+/** Presentations, most recently edited first. */
+export async function listPresentations(): Promise<Presentation[]> {
+  return db.presentations.orderBy('updatedAt').reverse().toArray();
+}
+
+export async function getPresentation(id: string): Promise<Presentation | null> {
+  return (await db.presentations.get(id)) ?? null;
+}
+
+export async function savePresentation(p: Presentation) {
+  await db.presentations.put(p);
+}
+
+/** Deletes the presentation only; its rehearsal sessions stay in the history (they keep their own text copy). */
+export async function deletePresentation(id: string) {
+  await db.presentations.delete(id);
+}
 
 export async function getBaseline(): Promise<UserBaseline | null> {
   return (await db.baseline.get('current')) ?? null;
@@ -46,9 +71,11 @@ export async function saveSession(session: TrainingSession, audio?: Blob) {
   });
 }
 
-/** Current-schema sessions, newest first. */
-export async function listSessions(): Promise<TrainingSession[]> {
-  const all = await db.sessions.orderBy('timestamp').reverse().toArray();
+/** Current-schema sessions, newest first, optionally scoped to one presentation. */
+export async function listSessions(presentationId?: string): Promise<TrainingSession[]> {
+  const all = presentationId === undefined
+    ? await db.sessions.orderBy('timestamp').reverse().toArray()
+    : await db.sessions.where({ presentationId }).reverse().sortBy('timestamp');
   return all.filter((s) => s.schema === 2);
 }
 
@@ -61,9 +88,10 @@ export async function deleteSession(id: string) {
 }
 
 export async function clearAllData() {
-  await db.transaction('rw', db.sessions, db.audio, db.baseline, async () => {
+  await db.transaction('rw', [db.sessions, db.audio, db.baseline, db.presentations], async () => {
     await db.sessions.clear();
     await db.audio.clear();
     await db.baseline.clear();
+    await db.presentations.clear();
   });
 }

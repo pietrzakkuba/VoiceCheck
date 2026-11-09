@@ -24,6 +24,43 @@ describe('LiveAnalyzer', () => {
     expect(s.syllableRate!).toBeGreaterThan(3.5);
     expect(s.syllableRate!).toBeLessThan(6.5);
   });
+
+  it('counts corrected syllables in speech, excluding calibration and silence', () => {
+    const la = new LiveAnalyzer({ calibrateMs: 2000, correction: 1.5, syllablesPerWord: 2.3, maxContinuousMs: 8000 });
+    la.nuclei.push(500, 1500, 2100, 2400, 3000, 4100);
+    la.vad.segments.push({ startMs: 0, endMs: 2450 }, { startMs: 4000, endMs: 4500 });
+    expect(la.stats().syllables).toBe(0);
+    for (let i = 0; i < 200; i++) la.pushFrame({ db: -60, voicing: 0, clipped: 0 });
+    expect(la.stats().syllables).toBe(4.5);
+    expect(la.stats().syllableRate).toBeNull();
+    for (let i = 0; i < 2000; i++) la.pushFrame({ db: -60, voicing: 0, clipped: 0 });
+    expect(la.stats().syllables).toBe(4.5);
+  });
+
+  it('includes the open speech segment and preserves the count across pauses', () => {
+    const la = new LiveAnalyzer({ calibrateMs: 0, correction: 1, syllablesPerWord: 2.3, maxContinuousMs: 8000 });
+    la.pushVad(0.9, 0);
+    la.nuclei.push(100, 300, 600);
+    la.pushVad(0.9, 700);
+    expect(la.stats().syllables).toBe(3);
+    la.pushVad(0.1, 800);
+    la.nuclei.push(1500);
+    la.pushVad(0.1, 2000);
+    expect(la.stats().syllables).toBe(3);
+    la.pushVad(0.9, 3000);
+    la.nuclei.push(3100);
+    la.pushVad(0.9, 3200);
+    expect(la.stats().syllables).toBe(4);
+    const fresh = new LiveAnalyzer({ calibrateMs: 0, correction: 1, syllablesPerWord: 2.3, maxContinuousMs: 8000 });
+    expect(fresh.stats().syllables).toBe(0);
+  });
+
+  it('does not exclude early speech when a known noise floor skips calibration', () => {
+    const la = new LiveAnalyzer({ calibrateMs: 2000, noiseFloorDb: -60, correction: 1, syllablesPerWord: 2.3, maxContinuousMs: 8000 });
+    la.vad.segments.push({ startMs: 0, endMs: 1000 });
+    la.nuclei.push(100, 300);
+    expect(la.stats().syllables).toBe(2);
+  });
 });
 
 describe('estimateOffsetMs', () => {

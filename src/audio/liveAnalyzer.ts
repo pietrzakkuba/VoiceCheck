@@ -20,6 +20,8 @@ export interface LiveStats {
   breathState: 'ok' | 'warn' | 'critical';
   clipping: boolean;
   speechMs: number;
+  /** Cumulative corrected syllable count inside speech, excluding initial calibration. */
+  syllables: number;
 }
 
 export interface LiveAnalyzerOptions {
@@ -110,6 +112,15 @@ export class LiveAnalyzer {
       speechTotal += s.endMs - s.startMs;
       speechInWin += Math.max(0, s.endMs - Math.max(s.startMs, winStart));
     }
+    const speechStart = this.o.noiseFloorDb === undefined ? this.o.calibrateMs : 0;
+    let syllables = 0;
+    let segment = 0;
+    for (const t of this.nuclei) {
+      if (t < speechStart || this.calibrating) continue;
+      while (segment < segs.length && t > segs[segment].endMs + 30) segment++;
+      if (segment === segs.length) break;
+      if (t >= segs[segment].startMs - 30) syllables++;
+    }
     let rate: number | null = null;
     if (speechInWin >= T.liveMinSpeechMs) {
       // Only nuclei inside speech count.
@@ -146,6 +157,7 @@ export class LiveAnalyzer {
       breathState: ratio >= 1 ? 'critical' : ratio >= T.breathWarnRatio ? 'warn' : 'ok',
       clipping: clipRatio > T.clipRatio,
       speechMs: speechTotal,
+      syllables: syllables * this.o.correction,
     };
   }
 }
