@@ -1,6 +1,6 @@
 /**
- * Phonetically balanced calibration text (5.11), ~60 s at 4.5 syllables/s.
- * Every scored category (szumiące, syczące, ciszące, nosowe, sonorne) appears many times.
+ * Calibration text, ~60 s at 4.5 syllables/s. Its known syllable count lets the app
+ * correct the acoustic syllable detector for this user's voice and microphone.
  */
 export const CALIBRATION_TEXT =
   'Każdego ranka Zosia jedzie rowerem nad rzekę. Mija szkołę, cichy park i stary młyn, ' +

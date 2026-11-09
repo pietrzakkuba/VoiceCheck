@@ -1,69 +1,55 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BookOpen, BookOpenText, Crosshair, Gauge, Mic2, X } from 'lucide-react';
-import {
-  Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
-} from 'recharts';
+import { BookOpenText, Crosshair, Loader2, MessageCircle, Wind, X } from 'lucide-react';
+import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert } from '@/components/ui/primitives';
 import { db, getBaseline } from '@/store/db';
 import { useSettings } from '@/store/settings';
-import { MODE_LABELS, scoreColor } from '@/lib/labels';
-import { CATEGORY_LABELS } from '@/engine/units';
+import { MODE_LABELS } from '@/lib/labels';
 import { formatMs } from '@/lib/utils';
-import { UNIT_CATEGORIES } from '@/types';
+import type { TrainingSession } from '@/types';
 
 const MODES = [
-  { to: '/reading', icon: BookOpenText, title: 'Czytanie tekstu', desc: 'Własny tekst lub prezentacja' },
-  { to: '/pacer', icon: Gauge, title: 'Pacer Karaoke', desc: 'Czytanie w zadanym tempie' },
-  { to: '/diction', icon: Mic2, title: 'Laboratorium dykcji', desc: 'Łamańce i pary minimalne' },
-  { to: '/storytelling', icon: BookOpen, title: 'Opowiadanie historii', desc: 'Własna historia bez pytań i głosu bota' },
+  { to: '/reading', icon: BookOpenText, title: 'Czytanie tekstu', desc: 'Czytaj na głos gotowy lub własny tekst' },
+  { to: '/speaking', icon: MessageCircle, title: 'Swobodne mówienie', desc: 'Mów własnymi słowami na dowolny temat' },
+  { to: '/calibration', icon: Crosshair, title: 'Kalibracja', desc: 'Dopasuj pomiar tempa do swojego głosu' },
 ];
 
 const shortDate = (t: number) => new Date(t).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });
+const tooltipStyle = { background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8 };
+
+function rateVariant(s: TrainingSession): 'ok' | 'warn' | 'bad' | 'info' {
+  const r = s.metrics.articulationRate;
+  const [lo, hi] = s.settings.targetArticulationRate;
+  if (r > hi + 1) return 'bad';
+  if (r > hi) return 'warn';
+  if (r < lo - 1) return 'info';
+  return 'ok';
+}
 
 export default function Dashboard() {
-  const sessions = useLiveQuery(() => db.sessions.orderBy('timestamp').reverse().toArray(), [], []);
+  const all = useLiveQuery(() => db.sessions.orderBy('timestamp').reverse().toArray(), [], []);
   const baseline = useLiveQuery(() => getBaseline(), [], undefined);
-  const { onboardingDismissed, targetArticulationRate, set } = useSettings();
+  const { onboardingDismissed, targetArticulationRate, maxContinuousSpeechSeconds, set } = useSettings();
 
-  const complete = useMemo(() => sessions.filter((s) => s.analysisStatus !== 'pending' && s.mode !== 'calibration'), [sessions]);
+  const sessions = useMemo(() => all.filter((s) => s.schema === 2), [all]);
+  const migrating = all.length - sessions.length;
+  const training = useMemo(() => sessions.filter((s) => s.mode !== 'calibration' && s.metrics.phraseCount > 0), [sessions]);
 
   const trend = useMemo(
     () =>
-      complete.slice(0, 40).reverse().map((s, i) => ({
-        n: i + 1,
+      training.slice(0, 40).reverse().map((s) => ({
         date: shortDate(s.timestamp),
-        Wynik: Math.round(s.scores.total),
-        Tempo: Math.round(s.scores.tempo),
-        Artykulacja: Math.round(s.scores.articulation),
-        Płynność: Math.round(s.scores.fluency),
-        Intonacja: Math.round(s.scores.prosody),
-        ar: +s.metrics.articulationRate.toFixed(2),
+        tempo: +s.metrics.articulationRate.toFixed(2),
+        najdluzsza: +(s.metrics.longestPhraseMs / 1000).toFixed(1),
+        ponadLimit: Math.round((s.metrics.overLimitPhrases / Math.max(1, s.metrics.phraseCount)) * 100),
       })),
-    [complete],
+    [training],
   );
-
-  const categories = useMemo(() => {
-    const acc: Record<string, { ok: number; n: number }> = {};
-    for (const s of complete.slice(0, 30)) {
-      for (const [c, v] of Object.entries(s.categoryGop ?? {})) {
-        if (!v) continue;
-        const a = (acc[c] ??= { ok: 0, n: 0 });
-        a.ok += v.okRatio * v.n;
-        a.n += v.n;
-      }
-    }
-    return UNIT_CATEGORIES.filter((c) => (acc[c]?.n ?? 0) >= 5).map((c) => ({
-      name: CATEGORY_LABELS[c].split(' (')[0],
-      full: CATEGORY_LABELS[c],
-      Wyrazistość: Math.round((acc[c].ok / acc[c].n) * 100),
-      n: acc[c].n,
-    }));
-  }, [complete]);
 
   const showOnboarding = baseline === null && !onboardingDismissed;
 
@@ -74,7 +60,7 @@ export default function Dashboard() {
           <Crosshair className="size-4 mt-0.5" aria-hidden />
           <div className="flex-1">
             <p className="font-medium">Zacznij od kalibracji</p>
-            <p className="text-sm">Minuta czytania pozwoli dopasować ocenę wymowy i tempa do Twojego głosu i mikrofonu.</p>
+            <p className="text-sm">Minuta czytania pozwoli dokładniej mierzyć tempo Twojej mowy na Twoim mikrofonie.</p>
             <div className="mt-2 flex gap-2">
               <Button size="sm" asChild><Link to="/calibration">Przejdź do kalibracji</Link></Button>
               <Button size="sm" variant="ghost" onClick={() => set({ onboardingDismissed: true })}>Później</Button>
@@ -86,10 +72,12 @@ export default function Dashboard() {
 
       <div>
         <h1 className="text-2xl font-semibold">Pulpit</h1>
-        <p className="text-sm text-muted-foreground">Trenuj dykcję i tempo mówienia. Wszystko działa lokalnie – nagrania nie opuszczają Twojego komputera.</p>
+        <p className="text-sm text-muted-foreground">
+          Mierz tempo mówienia i pamiętaj o oddechu. Wszystko działa lokalnie – nagrania nie opuszczają Twojego komputera.
+        </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         {MODES.map((m) => (
           <Link key={m.to} to={m.to} className="group rounded-xl border bg-card p-4 hover:border-primary hover:shadow-sm transition">
             <m.icon className="size-6 text-primary mb-2" aria-hidden />
@@ -99,33 +87,17 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {migrating > 0 && (
+        <Alert variant="info">
+          <Loader2 className="size-4 mt-0.5 animate-spin" aria-hidden /> Przeliczam {migrating} {migrating === 1 ? 'sesję' : 'sesji'} z poprzedniej wersji aplikacji…
+        </Alert>
+      )}
+
       {trend.length >= 2 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Postępy</CardTitle>
-              <CardDescription>Wynik ogólny i składowe w ostatnich sesjach</CardDescription>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trend} margin={{ left: -20, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="date" fontSize={11} stroke="var(--color-muted-foreground)" />
-                  <YAxis domain={[0, 100]} fontSize={11} stroke="var(--color-muted-foreground)" />
-                  <RTooltip contentStyle={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="Wynik" stroke="var(--color-primary)" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="Tempo" stroke="var(--color-info)" dot={false} strokeWidth={1.2} />
-                  <Line type="monotone" dataKey="Artykulacja" stroke="var(--color-ok)" dot={false} strokeWidth={1.2} />
-                  <Line type="monotone" dataKey="Płynność" stroke="var(--color-warn)" dot={false} strokeWidth={1.2} />
-                  <Line type="monotone" dataKey="Intonacja" stroke="var(--color-bad)" dot={false} strokeWidth={1.2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Tempo artykulacji</CardTitle>
+              <CardTitle>Tempo mowy</CardTitle>
               <CardDescription>Sylaby na sekundę (bez pauz); zielony pas = Twój cel {targetArticulationRate[0]}–{targetArticulationRate[1]}</CardDescription>
             </CardHeader>
             <CardContent className="h-64">
@@ -135,8 +107,26 @@ export default function Dashboard() {
                   <ReferenceArea y1={targetArticulationRate[0]} y2={targetArticulationRate[1]} fill="var(--color-ok)" fillOpacity={0.12} />
                   <XAxis dataKey="date" fontSize={11} stroke="var(--color-muted-foreground)" />
                   <YAxis domain={[2, 8]} fontSize={11} stroke="var(--color-muted-foreground)" />
-                  <RTooltip contentStyle={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                  <Line type="monotone" dataKey="ar" name="syl/s" stroke="var(--color-primary)" strokeWidth={2} />
+                  <RTooltip contentStyle={tooltipStyle} />
+                  <Line type="monotone" dataKey="tempo" name="syl/s" stroke="var(--color-primary)" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Wind className="size-4 text-info" aria-hidden /> Oddech</CardTitle>
+              <CardDescription>Najdłuższy fragment bez oddechu (s); przerywana linia = limit {maxContinuousSpeechSeconds} s</CardDescription>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trend} margin={{ left: -20, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <ReferenceLine y={maxContinuousSpeechSeconds} stroke="var(--color-bad)" strokeDasharray="5 5" />
+                  <XAxis dataKey="date" fontSize={11} stroke="var(--color-muted-foreground)" />
+                  <YAxis fontSize={11} stroke="var(--color-muted-foreground)" />
+                  <RTooltip contentStyle={tooltipStyle} />
+                  <Line type="monotone" dataKey="najdluzsza" name="najdłuższa fraza (s)" stroke="var(--color-info)" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -145,26 +135,6 @@ export default function Dashboard() {
       ) : (
         <Card>
           <CardContent className="text-sm text-muted-foreground">Wykresy postępów pojawią się po co najmniej dwóch sesjach treningowych.</CardContent>
-        </Card>
-      )}
-
-      {categories.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Wyrazistość grup głosek</CardTitle>
-            <CardDescription>Odsetek głosek wymówionych wyraźnie (ostatnie 30 sesji)</CardDescription>
-          </CardHeader>
-          <CardContent className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categories} margin={{ left: -20, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="name" fontSize={11} stroke="var(--color-muted-foreground)" />
-                <YAxis domain={[0, 100]} fontSize={11} stroke="var(--color-muted-foreground)" />
-                <RTooltip contentStyle={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                <Bar dataKey="Wyrazistość" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
         </Card>
       )}
 
@@ -185,14 +155,17 @@ export default function Dashboard() {
                       <div className="font-medium">{MODE_LABELS[s.mode]}</div>
                       <div className="text-xs text-muted-foreground truncate">
                         {new Date(s.timestamp).toLocaleString('pl-PL')} · {formatMs(s.durationSeconds * 1000)}
-                        {s.question ? ` · ${s.question}` : s.targetText ? ` · ${s.targetText.slice(0, 60)}${s.targetText.length > 60 ? '…' : ''}` : ''}
+                        {s.targetText && s.mode === 'reading' ? ` · ${s.targetText.slice(0, 60)}${s.targetText.length > 60 ? '…' : ''}` : ''}
                       </div>
                     </div>
-                    {s.analysisStatus === 'pending' ? (
-                      <Badge variant="secondary">oczekuje na analizę</Badge>
-                    ) : (
-                      <Badge variant={scoreColor(s.scores.total)}>{Math.round(s.scores.total)}</Badge>
-                    )}
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {s.metrics.overLimitPhrases > 0 && (
+                        <Badge variant="warn" title="Fragmenty za długo bez oddechu"><Wind className="size-3" aria-hidden /> {s.metrics.overLimitPhrases}</Badge>
+                      )}
+                      {s.metrics.syllables > 0 && (
+                        <Badge variant={rateVariant(s)}>{s.metrics.articulationRate.toFixed(1).replace('.', ',')} syl/s</Badge>
+                      )}
+                    </div>
                   </Link>
                 </li>
               ))}

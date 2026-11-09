@@ -24,6 +24,11 @@ db.version(1).stores({
   baseline: 'id',
 });
 
+// v2: tempo & breath only. Old sessions are re-analysed by migrateLegacySessions().
+db.version(2).stores({
+  sessions: 'id, timestamp, mode, schema',
+});
+
 export async function getBaseline(): Promise<UserBaseline | null> {
   return (await db.baseline.get('current')) ?? null;
 }
@@ -39,6 +44,12 @@ export async function saveSession(session: TrainingSession, audio?: Blob) {
     }
     await db.sessions.put(session);
   });
+}
+
+/** Current-schema sessions, newest first. */
+export async function listSessions(): Promise<TrainingSession[]> {
+  const all = await db.sessions.orderBy('timestamp').reverse().toArray();
+  return all.filter((s) => s.schema === 2);
 }
 
 export async function deleteSession(id: string) {

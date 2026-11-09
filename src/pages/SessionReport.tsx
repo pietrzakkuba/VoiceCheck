@@ -1,32 +1,54 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, Loader2, Pause, Play, RefreshCw, Trash2, Hourglass } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, Info, Loader2, Pause, Play, RefreshCw, Trash2, Wind } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert } from '@/components/ui/primitives';
-import { AnnotatedTranscript } from '@/components/report/AnnotatedTranscript';
-import { WordDetails } from '@/components/report/WordDetails';
 import { Timeline } from '@/components/report/Timeline';
-import { TopIssues } from '@/components/report/TopIssues';
-import { ScoreRing, ScoreBars } from '@/components/report/Scores';
-import { RepeatComparison } from '@/components/report/RepeatComparison';
+import { rateZone } from '@/components/audio/SpeedometerGauge';
 import { useSessionAudio } from '@/hooks/useSessionAudio';
 import { db, deleteSession } from '@/store/db';
-import { exportAnalysisInput, reanalyzeSession } from '@/lib/analysisPipeline';
-import { useModelStore } from '@/workers/client';
 import { useSettings } from '@/store/settings';
+import { recomputeSession } from '@/lib/sessionPipeline';
 import { MODE_LABELS } from '@/lib/labels';
-import { formatMs } from '@/lib/utils';
+import { cn, formatMs } from '@/lib/utils';
+import type { PhraseTempo, TipSeverity, TrainingSession } from '@/types';
 
-function download(text: string, name: string) {
-  const blob = new Blob([text], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+const TEMPO_BADGE: Record<PhraseTempo, { label: string; variant: 'ok' | 'warn' | 'bad' | 'info' | 'secondary' }> = {
+  short: { label: 'krótka', variant: 'secondary' },
+  slow: { label: 'wolno', variant: 'info' },
+  ok: { label: 'dobrze', variant: 'ok' },
+  fast: { label: 'szybko', variant: 'warn' },
+  too_fast: { label: 'za szybko', variant: 'bad' },
+};
+
+const TIP_ICON: Record<TipSeverity, typeof Info> = { bad: AlertTriangle, warn: AlertTriangle, ok: CheckCircle2, info: Info };
+
+const fmt1 = (v: number) => v.toFixed(1).replace('.', ',');
+
+function settingsDiffer(s: TrainingSession, cur: { targetArticulationRate: [number, number]; maxContinuousSpeechSeconds: number; liveSyllableCorrection: number; syllablesPerWord: number }) {
+  const a = s.settings;
+  return (
+    a.targetArticulationRate[0] !== cur.targetArticulationRate[0] ||
+    a.targetArticulationRate[1] !== cur.targetArticulationRate[1] ||
+    a.maxContinuousSpeechSeconds !== cur.maxContinuousSpeechSeconds ||
+    a.syllableCorrection !== cur.liveSyllableCorrection ||
+    a.syllablesPerWord !== cur.syllablesPerWord
+  );
+}
+
+function Stat({ label, value, sub, cls }: { label: string; value: React.ReactNode; sub?: React.ReactNode; cls?: string }) {
+  return (
+    <Card className="gap-1 py-4">
+      <CardContent className="px-4">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={cn('text-2xl font-semibold tabular-nums', cls)}>{value}</div>
+        {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function SessionReport() {
@@ -35,69 +57,12 @@ export default function SessionReport() {
   const debug = params.get('debug') === '1';
   const nav = useNavigate();
   const session = useLiveQuery(() => (id ? db.sessions.get(id) : undefined), [id], null);
-  const modelStatus = useModelStore((s) => s.status);
-  const target = useSettings((s) => s.targetArticulationRate);
+  const settings = useSettings();
   const audio = useSessionAudio(session?.audioKey, session?.audioOffsetMs ?? 0);
-  const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const conversation = useLiveQuery(
-    async () => (session?.conversationId ? (await db.sessions.where('conversationId').equals(session.conversationId).sortBy('timestamp')) : []),
-    [session?.conversationId],
-    [],
-  );
-
-  const selectWord = (i: number) => {
-    setSelected(i);
-    const w = session?.words[i];
-    if (w && w.status !== 'skipped' && audio.available) audio.playRange(Math.max(0, w.startMs - 300), w.endMs + 300);
-  };
-
-  const reanalyze = async () => {
-    if (!session) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      await reanalyzeSession(session.id);
-      setSelected(null);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const exportJson = () => {
-    if (!session) return;
-    download(JSON.stringify(session, null, 2), `czystamowa-${session.id}.json`);
-  };
-
-  const exportCorpus = async () => {
-    if (!session) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const data = await exportAnalysisInput(session.id);
-      download(JSON.stringify(data), `czystamowa-input-${session.id}.json`);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const remove = async () => {
-    if (!session || !confirm('Usunąć tę sesję wraz z nagraniem?')) return;
-    await deleteSession(session.id);
-    nav('/');
-  };
-
-  const counts = useMemo(() => {
-    const c = { skipped: 0, mumbled: 0, rushed: 0, filler: 0 };
-    for (const w of session?.words ?? []) if (w.status in c) c[w.status as keyof typeof c]++;
-    return c;
-  }, [session]);
+  const stale = useMemo(() => (session && session.schema === 2 ? settingsDiffer(session, settings) : false), [session, settings]);
 
   if (session === null) return <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Wczytywanie…</div>;
   if (!session) {
@@ -107,9 +72,50 @@ export default function SessionReport() {
       </Alert>
     );
   }
+  if (session.schema !== 2) {
+    return (
+      <Alert variant="info">
+        <Loader2 className="size-4 mt-0.5 animate-spin" aria-hidden /> Ta sesja pochodzi z poprzedniej wersji aplikacji i jest właśnie przeliczana…
+      </Alert>
+    );
+  }
 
-  const pending = session.analysisStatus === 'pending';
   const m = session.metrics;
+  const [lo, hi] = session.settings.targetArticulationRate;
+  const limitS = session.settings.maxContinuousSpeechSeconds;
+  const zone = rateZone(m.syllables > 0 ? m.articulationRate : null, [lo, hi]);
+
+  const playPhrase = (i: number) => {
+    const p = session.phrases[i];
+    if (p && audio.available) audio.playRange(Math.max(0, p.startMs - 200), p.endMs + 200);
+  };
+
+  const recompute = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await recomputeSession(session.id);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(session, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `czystamowa-${session.id}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  const remove = async () => {
+    if (!confirm('Usunąć tę sesję wraz z nagraniem?')) return;
+    await deleteSession(session.id);
+    nav('/');
+  };
 
   return (
     <div className="space-y-5">
@@ -117,29 +123,26 @@ export default function SessionReport() {
         <div>
           <h1 className="text-2xl font-semibold">Raport sesji</h1>
           <p className="text-sm text-muted-foreground">
-            {MODE_LABELS[session.mode]} · {new Date(session.timestamp).toLocaleString('pl-PL')} · {formatMs(session.durationSeconds * 1000)} · mikrofon: {session.deviceLabel || 'nieznany'} · model: {session.modelTier}
+            {MODE_LABELS[session.mode]} · {new Date(session.timestamp).toLocaleString('pl-PL')} · {formatMs(session.durationSeconds * 1000)} · mikrofon: {session.deviceLabel || 'nieznany'}
           </p>
-          {session.question && <p className="mt-1 text-sm"><span className="text-muted-foreground">Pytanie:</span> {session.question}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={audio.toggle} disabled={!audio.available}>
             {audio.playing ? <Pause className="size-4" /> : <Play className="size-4" />} {audio.playing ? 'Pauza' : 'Odtwórz'}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => void reanalyze()} disabled={busy || modelStatus !== 'ready'} title="Przeanalizuj nagranie ponownie bieżącym modelem i kalibracją">
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />} Analizuj ponownie
-          </Button>
           {debug && <Button variant="outline" size="sm" onClick={exportJson}><Download className="size-4" /> JSON</Button>}
-          {debug && <Button variant="outline" size="sm" onClick={() => void exportCorpus()} disabled={busy || modelStatus !== 'ready'} title="Eksport wejścia silnika dla scripts/evaluate-corpus.ts"><Download className="size-4" /> Korpus</Button>}
           <Button variant="ghost" size="sm" onClick={() => void remove()} aria-label="Usuń sesję"><Trash2 className="size-4" /></Button>
         </div>
       </div>
 
-      {pending && (
+      {stale && (
         <Alert variant="info">
-          <Hourglass className="size-4 mt-0.5" aria-hidden />
-          <div>
-            Analiza mowy oczekuje na modele AI. Poniżej widzisz pomiary akustyczne (tempo, pauzy, intonacja); pełny raport
-            z transkrypcją i oceną głosek pojawi się automatycznie po pobraniu modeli.
+          <RefreshCw className="size-4 mt-0.5" aria-hidden />
+          <div className="flex flex-wrap items-center gap-3">
+            <span>Od czasu tej sesji zmieniły się ustawienia lub kalibracja.</span>
+            <Button size="sm" variant="outline" onClick={() => void recompute()} disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />} Przelicz z bieżącymi ustawieniami
+            </Button>
           </div>
         </Alert>
       )}
@@ -147,85 +150,114 @@ export default function SessionReport() {
       {err && <Alert variant="bad">{err}</Alert>}
       {session.warnings.map((w, i) => <Alert key={i} variant="warn">{w}</Alert>)}
 
-      <div className="grid gap-4 md:grid-cols-[auto_1fr]">
-        <Card className="items-center justify-center px-6">
-          <ScoreRing value={session.scores.total} label="Wynik" muted={pending} />
-        </Card>
-        <Card>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <ScoreBars scores={session.scores} pending={pending} />
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              <dt className="text-muted-foreground">Tempo artykulacji</dt>
-              <dd className="tabular-nums">
-                {m.articulationRate.toFixed(1)} syl/s{' '}
-                <Badge variant={m.articulationRate > target[1] ? 'warn' : m.articulationRate < target[0] - 0.5 ? 'info' : 'ok'}>cel {target[0]}–{target[1]}</Badge>
-              </dd>
-              <dt className="text-muted-foreground">Tempo mówienia</dt><dd className="tabular-nums">{m.speechRate.toFixed(1)} syl/s · {Math.round(m.wpm)} sł/min</dd>
-              <dt className="text-muted-foreground">Najdłuższy ciąg bez pauzy</dt><dd className="tabular-nums">{(m.longestIpuMs / 1000).toFixed(1)} s</dd>
-              <dt className="text-muted-foreground">Średnia pauza</dt><dd className="tabular-nums">{(m.meanPauseMs / 1000).toFixed(2)} s</dd>
-              <dt className="text-muted-foreground">Wypełniacze</dt><dd className="tabular-nums">{m.fillersPerMinute.toFixed(1)} / min</dd>
-              <dt className="text-muted-foreground">Rozpiętość intonacji</dt><dd className="tabular-nums">{m.f0RangeSemitones.toFixed(1)} półtonów</dd>
-              <dt className="text-muted-foreground">Stosunek sygnału do szumu</dt><dd className="tabular-nums">{m.snrDb.toFixed(0)} dB</dd>
-              {!pending && <><dt className="text-muted-foreground">Słowa: pominięte / niewyraźne</dt><dd className="tabular-nums">{counts.skipped} / {counts.mumbled}</dd></>}
-            </dl>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Stat
+          label="Tempo mowy"
+          value={<>{fmt1(m.articulationRate)} <span className="text-sm font-normal text-muted-foreground">syl/s</span></>}
+          sub={<><span className={zone.cls}>{zone.label}</span> · cel {fmt1(lo)}–{fmt1(hi)} · ≈ {Math.round(m.wpm)} słów/min</>}
+          cls={zone.cls}
+        />
+        <Stat
+          label="Najdłużej bez oddechu"
+          value={formatMs(m.longestPhraseMs)}
+          sub={`limit ${limitS} s · średnio ${formatMs(m.meanPhraseMs)}`}
+          cls={m.longestPhraseMs > limitS * 1000 ? 'text-bad' : 'text-ok'}
+        />
+        <Stat
+          label="Frazy ponad limit"
+          value={<>{m.overLimitPhrases} <span className="text-sm font-normal text-muted-foreground">z {m.phraseCount}</span></>}
+          sub={m.fastPhrases > 0 ? `${m.fastPhrases} fraz za szybkich` : 'brak za szybkich fraz'}
+          cls={m.overLimitPhrases > 0 ? 'text-warn' : 'text-ok'}
+        />
+        <Stat
+          label="Oddechy"
+          value={<>{fmt1(m.breathsPerMinute)} <span className="text-sm font-normal text-muted-foreground">/ min</span></>}
+          sub={`${m.breathCount} pauz · średnio ${(m.meanPauseMs / 1000).toFixed(1).replace('.', ',')} s`}
+        />
       </div>
 
-      {session.repeatOf && <RepeatComparison session={session} />}
-
-      <section aria-labelledby="top-issues">
-        <h2 id="top-issues" className="text-lg font-semibold mb-2">Najważniejsze do poprawy</h2>
-        <TopIssues session={session} onSelectWord={selectWord} />
+      <section aria-labelledby="tips" className="space-y-2">
+        <h2 id="tips" className="text-lg font-semibold">Wskazówki</h2>
+        {session.tips.map((t) => {
+          const Icon = TIP_ICON[t.severity];
+          return (
+            <Alert key={t.key} variant={t.severity}>
+              <Icon className="size-4 mt-0.5" aria-hidden />
+              <div className="flex-1 space-y-1">
+                <p className="font-medium">{t.title}</p>
+                <p className="text-sm opacity-90">{t.detail}</p>
+              </div>
+              {t.atMs !== undefined && audio.available && (
+                <Button size="sm" variant="ghost" onClick={() => audio.playRange(Math.max(0, t.atMs! - 200))}>
+                  <Play className="size-4" /> Odsłuchaj
+                </Button>
+              )}
+            </Alert>
+          );
+        })}
       </section>
-
-      {session.words.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Transkrypcja</CardTitle>
-            <CardDescription>Kliknij słowo, aby je odsłuchać i zobaczyć szczegóły wymowy.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AnnotatedTranscript session={session} selected={selected} onSelect={selectWord} currentMs={audio.playing ? audio.timeMs : undefined} />
-          </CardContent>
-        </Card>
-      )}
-
-      {selected !== null && (
-        <WordDetails session={session} index={selected} onPlay={audio.playRange} onClose={() => setSelected(null)} canPlay={!!audio.available} />
-      )}
 
       <Card>
         <CardHeader>
           <CardTitle>Oś czasu</CardTitle>
-          <CardDescription>Kliknij, aby przewinąć nagranie. Kolorowe znaczniki u góry to wykryte problemy.</CardDescription>
+          <CardDescription>
+            Środkowy pasek to frazy między oddechami, dolny — tempo każdej frazy na tle Twojego celu. Kliknij, aby przewinąć lub odsłuchać frazę.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Timeline session={session} currentMs={audio.timeMs} onSeek={(ms) => { audio.seek(ms); }} onSelectWord={selectWord} />
+          <Timeline session={session} currentMs={audio.timeMs} onSeek={audio.seek} onSelectPhrase={playPhrase} />
         </CardContent>
       </Card>
 
-      {conversation.length > 1 && (
+      {session.phrases.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>Pozostałe odpowiedzi z tej rozmowy</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="divide-y text-sm">
-              {conversation.map((c, i) => (
-                <li key={c.id} className="py-2 flex justify-between gap-3">
-                  <span className="truncate">{i + 1}. {c.question}</span>
-                  {c.id === session.id ? <Badge variant="secondary">ta odpowiedź</Badge> : <Link className="underline shrink-0" to={`/session/${c.id}`}>wynik {Math.round(c.scores.total)}</Link>}
-                </li>
-              ))}
-            </ul>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Wind className="size-4 text-info" aria-hidden /> Frazy</CardTitle>
+            <CardDescription>Każda fraza to fragment mowy między dwoma oddechami. Kliknij wiersz, aby go odsłuchać.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead className="text-xs text-muted-foreground text-left">
+                <tr>
+                  <th className="py-1 pr-3 font-normal">#</th>
+                  <th className="py-1 pr-3 font-normal">Start</th>
+                  <th className="py-1 pr-3 font-normal">Bez oddechu</th>
+                  <th className="py-1 pr-3 font-normal">Tempo</th>
+                  <th className="py-1 pr-3 font-normal">Pauza po</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {session.phrases.map((p, i) => (
+                  <tr key={i} className="cursor-pointer hover:bg-muted/50" onClick={() => playPhrase(i)}>
+                    <td className="py-1.5 pr-3 text-muted-foreground">{i + 1}</td>
+                    <td className="py-1.5 pr-3">{formatMs(p.startMs)}</td>
+                    <td className={cn('py-1.5 pr-3', p.overLimit && 'text-bad font-medium')}>
+                      {formatMs(p.endMs - p.startMs)} {p.overLimit && <Badge variant="bad">ponad limit</Badge>}
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      {p.tempo === 'short' ? '–' : `${fmt1(p.rate)} syl/s`} <Badge variant={TEMPO_BADGE[p.tempo].variant}>{TEMPO_BADGE[p.tempo].label}</Badge>
+                    </td>
+                    <td className="py-1.5 pr-3 text-muted-foreground">{p.pauseAfterMs ? formatMs(p.pauseAfterMs) : '–'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </CardContent>
         </Card>
+      )}
+
+      {session.targetText && session.mode !== 'calibration' && (
+        <details className="rounded-md border p-4 text-sm">
+          <summary className="cursor-pointer font-medium">Czytany tekst</summary>
+          <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{session.targetText}</p>
+        </details>
       )}
 
       {debug && (
         <Card>
           <CardHeader><CardTitle>Debug</CardTitle></CardHeader>
           <CardContent>
-            <pre className="text-xs overflow-auto max-h-96">{JSON.stringify({ ...session, tracks: undefined, words: session.words.map((w) => ({ ...w, chars: undefined })) }, null, 2)}</pre>
+            <pre className="text-xs overflow-auto max-h-96">{JSON.stringify({ ...session, tracks: undefined }, null, 2)}</pre>
           </CardContent>
         </Card>
       )}

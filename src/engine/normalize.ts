@@ -1,8 +1,8 @@
 import { numericTokenToWords } from './numbersPl';
 
-/** Letters the Polish CTC model can emit. */
-export const CTC_ALPHABET = new Set('aąbcćdeęfghijklłmnńoóprsśtuvwxyzźż'.split(''));
-/** Letters that are in the CTC vocabulary but signal foreign words (5.3). */
+/** Polish letters (plus v/x, which signal foreign words). */
+const POLISH_LETTERS = new Set('aąbcćdeęfghijklłmnńoóprsśtuvwxyzźż'.split(''));
+/** Letters that signal foreign words (5.3). */
 const FOREIGN_LETTERS = /[qvx]/;
 
 const DIACRITIC_FOLD: Record<string, string> = {
@@ -26,7 +26,7 @@ const ABBREVIATIONS: Record<string, string[]> = {
 };
 
 export interface NormToken {
-  /** Lower-case letters only (CTC alphabet). */
+  /** Lower-case Polish letters only. */
   word: string;
   /** Original surface form. */
   raw: string;
@@ -75,7 +75,7 @@ export function normalizeText(text: string): NormToken[] {
     let unscorable = FOREIGN_LETTERS.test(core);
     let word = '';
     for (const ch of core) {
-      if (CTC_ALPHABET.has(ch) && ch !== 'q') word += ch;
+      if (POLISH_LETTERS.has(ch) && ch !== 'q') word += ch;
       else if (DIACRITIC_FOLD[ch]) {
         word += DIACRITIC_FOLD[ch];
         unscorable = true;
@@ -97,12 +97,4 @@ function mergeBoundary(a: NormToken['boundary'], b: NormToken['boundary']): Norm
 /** Simple word list (no boundaries) for comparisons. */
 export function normalizeWords(text: string): string[] {
   return normalizeText(text).map((t) => t.word);
-}
-
-/** Splits text into sentences (keeping original surface text) — used for "Powtórz to zdanie". */
-export function splitSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.?!…])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
 }

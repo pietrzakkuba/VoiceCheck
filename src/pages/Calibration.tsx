@@ -1,32 +1,49 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { CheckCircle2, Crosshair } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Crosshair } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
 import { TargetText } from '@/components/TargetText';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
-import { usePacerPosition } from '@/hooks/usePacer';
 import { CALIBRATION_TEXT } from '@/data/calibrationText';
 import { normalizeText } from '@/engine/normalize';
-import { buildPacerSchedule } from '@/engine/pacer';
-import { baselineFromSession } from '@/engine/report';
-import { median } from '@/engine/features';
+import { countTextSyllables } from '@/engine/syllables';
+import { T } from '@/engine/thresholds';
+import { recomputeSession } from '@/lib/sessionPipeline';
 import { saveBaseline } from '@/store/db';
 import { useSettings } from '@/store/settings';
-import type { PacerInfo, TrainingSession } from '@/types';
+import type { TrainingSession, UserBaseline } from '@/types';
 
 const CALIBRATE_MS = 2000;
-const RATE = 4.5;
 
-/** Onboarding calibration (5.11): read a balanced text with a 4.5 syl/s pacer → user baseline. */
+/**
+ * Derives the per-user syllable-detector correction from a reading of the calibration text,
+ * whose real syllable count is known. Returns null when the recording does not look like a full reading.
+ */
+export function calibrationFromSession(s: TrainingSession, textSyllables: number, textWords: number): UserBaseline | null {
+  const raw = s.tracks.nucleiMs.filter((t) => s.phrases.some((p) => t >= p.startMs - 50 && t <= p.endMs + 50)).length;
+  const speechSec = s.metrics.speechMs / 1000;
+  if (raw < 20 || speechSec < 10) return null;
+  const ratio = textSyllables / raw;
+  if (ratio < 0.5 || ratio > 2) return null;
+  return {
+    createdAt: Date.now(),
+    deviceLabel: s.deviceLabel,
+    articulationRate: +(textSyllables / speechSec).toFixed(2),
+    syllablesPerWord: +(textSyllables / Math.max(1, textWords)).toFixed(2),
+    liveSyllableCorrection: +Math.min(T.correctionMax, Math.max(T.correctionMin, ratio)).toFixed(3),
+  };
+}
+
+/** Calibration: read a known text naturally → syllable-count correction for this voice and microphone. */
 export default function Calibration() {
   const ts = useTrainingSession();
   const nav = useNavigate();
   const set = useSettings((s) => s.set);
   const tokens = useMemo(() => normalizeText(CALIBRATION_TEXT), []);
-  const [pacer, setPacer] = useState<PacerInfo | null>(null);
+  const textSyllables = useMemo(() => countTextSyllables(tokens.map((t) => t.word)), [tokens]);
   const [result, setResult] = useState<{ session: TrainingSession; ok: boolean; msg: string } | null>(null);
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
 
@@ -34,37 +51,24 @@ export default function Calibration() {
   const stop = useCallback(async () => {
     const s = await tsStop();
     if (!s) return;
-    if (s.analysisStatus === 'pending') {
-      setResult({ session: s, ok: false, msg: 'Modele AI nie są jeszcze gotowe, więc profil nie mógł zostać obliczony. Poczekaj na pobranie modeli i powtórz kalibrację.' });
+    const b = calibrationFromSession(s, textSyllables, tokens.length);
+    if (!b) {
+      setResult({ session: s, ok: false, msg: 'Nie udało się skalibrować — nagranie nie wygląda na przeczytanie całego tekstu. Przeczytaj go w całości i spróbuj ponownie.' });
       return;
     }
-    const intensities = (s.tracks?.intensityDb ?? []).filter((_, i) => s.tracks!.speechSegments.some((g) => i * 10 >= g.startMs && i * 10 <= g.endMs));
-    const f0 = (s.tracks?.f0Hz ?? []).filter((v) => v > 0);
-    const b = baselineFromSession(s, {
-      deviceLabel: s.deviceLabel,
-      medianIntensityDb: intensities.length ? +median(intensities).toFixed(1) : -30,
-      f0MedianHz: f0.length ? Math.round(median(f0)) : 0,
-    });
     await saveBaseline(b);
     set({ liveSyllableCorrection: b.liveSyllableCorrection, syllablesPerWord: b.syllablesPerWord, onboardingDismissed: true });
-    const skipped = s.words.filter((w) => w.status === 'skipped').length;
-    const ok = skipped / Math.max(1, s.words.length) < 0.2;
+    const updated = (await recomputeSession(s.id)) ?? s;
     setResult({
-      session: s,
-      ok,
-      msg: ok
-        ? `Profil zapisany. Twoje tempo artykulacji: ${b.articulationRate.toFixed(1)} syl/s, średnio ${b.syllablesPerWord} sylaby na słowo.`
-        : 'Profil zapisany, ale pominięto sporo słów – dla lepszej dokładności powtórz kalibrację, czytając cały tekst.',
+      session: updated,
+      ok: true,
+      msg: `Gotowe! Twoje naturalne tempo: ${b.articulationRate.toFixed(1).replace('.', ',')} sylaby/s. Pomiar tempa jest teraz dopasowany do Twojego głosu i mikrofonu.`,
     });
-  }, [tsStop, set]);
-
-  const pos = usePacerPosition(pacer, ts.captureRef, ts.phase === 'recording', stop);
+  }, [tsStop, set, textSyllables, tokens.length]);
 
   const start = () => {
     setResult(null);
-    const p = buildPacerSchedule(tokens, RATE, CALIBRATE_MS);
-    setPacer(p);
-    void ts.start({ mode: 'calibration', targetText: CALIBRATION_TEXT, pacer: p }, { calibrateMs: CALIBRATE_MS });
+    void ts.start({ mode: 'calibration', targetText: CALIBRATION_TEXT }, { calibrateMs: CALIBRATE_MS });
   };
 
   return (
@@ -72,8 +76,7 @@ export default function Calibration() {
       <div>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><Crosshair className="size-6 text-primary" aria-hidden /> Kalibracja</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Około minuty czytania. Na tej podstawie poznamy Twój naturalny sposób mówienia (wyrazistość poszczególnych grup głosek, tempo, głośność),
-          a progi oceny dopasują się do Ciebie i Twojego mikrofonu.
+          Około minuty czytania. Znamy liczbę sylab w tym tekście, więc po nagraniu dopasujemy pomiar tempa do Twojego głosu i mikrofonu.
         </p>
       </div>
       {!active && !result && (
@@ -85,8 +88,8 @@ export default function Calibration() {
           <CardContent>
             <ol className="list-decimal pl-5 space-y-1 text-sm">
               <li>Po kliknięciu „Start” zachowaj 2 sekundy ciszy – zmierzymy szum tła.</li>
-              <li>Czytaj <strong>spokojnie i starannie</strong>, podążając za podświetleniem (4,5 sylaby/s).</li>
-              <li>Na przecinkach i kropkach zrób krótką pauzę na oddech.</li>
+              <li>Przeczytaj <strong>cały tekst</strong> swoim naturalnym tempem.</li>
+              <li>Na przecinkach i kropkach rób krótkie pauzy na oddech. Kliknij „Zakończ”, gdy skończysz.</li>
             </ol>
           </CardContent>
         </Card>
@@ -94,18 +97,17 @@ export default function Calibration() {
       {(active || !result) && (
         <Card>
           <CardContent>
-            {pos.countdown > 0 && <div className="text-center text-5xl font-bold text-primary mb-3 tabular-nums">{pos.countdown}</div>}
-            <TargetText tokens={tokens} activeToken={pos.active} doneUntil={pos.done} breathe={pos.breathe} />
+            <TargetText tokens={tokens} />
           </CardContent>
         </Card>
       )}
       <SessionErrors error={ts.error} deviceWarning={ts.deviceWarning} />
       {result && (
         <Alert variant={result.ok ? 'ok' : 'warn'}>
-          <CheckCircle2 className="size-4 mt-0.5" aria-hidden />
+          {result.ok ? <CheckCircle2 className="size-4 mt-0.5" aria-hidden /> : <AlertTriangle className="size-4 mt-0.5" aria-hidden />}
           <div className="space-y-2">
             <p>{result.msg}</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => nav(`/session/${result.session.id}`)}>Zobacz raport</Button>
               <Button size="sm" variant="outline" onClick={start}>Powtórz kalibrację</Button>
               <Button size="sm" variant="ghost" onClick={() => nav('/')}>Na pulpit</Button>

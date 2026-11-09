@@ -1,22 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Volume2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { Label, NativeSelect, Slider, Switch, Alert } from '@/components/ui/primitives';
-import { useSettings, DEFAULT_SETTINGS } from '@/store/settings';
+import { useSettings } from '@/store/settings';
 import { clearAllData, getBaseline } from '@/store/db';
-import { initModels, useModelStore } from '@/workers/client';
 import { listMicrophones } from '@/audio/capture';
-import { liveCaptionsSupported } from '@/audio/liveCaptions';
-import { SCORE_LABELS } from '@/lib/labels';
-import type { ScoreWeights } from '@/types';
+import { playBreathAlert, primeAlertAudio } from '@/lib/alert';
 
 export default function Settings() {
   const s = useSettings();
-  const model = useModelStore();
   const baseline = useLiveQuery(() => getBaseline(), [], undefined);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -25,18 +21,16 @@ export default function Settings() {
     void listMicrophones().then(setMics).catch(() => setMics([]));
   }, []);
 
-  const setTier = (t: typeof s.modelTier) => {
-    s.set({ modelTier: t });
-    void initModels();
-  };
-
-  const weightSum = Object.values(s.scoreWeights).reduce((a, b) => a + b, 0);
-  const setWeight = (k: keyof ScoreWeights, v: number) => s.set({ scoreWeights: { ...s.scoreWeights, [k]: v } });
-
   const clear = async () => {
     if (!confirm('Usunąć wszystkie sesje, nagrania i kalibrację? Tej operacji nie można cofnąć.')) return;
     await clearAllData();
+    s.set({ liveSyllableCorrection: 1, syllablesPerWord: 2.3 });
     setMsg('Dane zostały usunięte.');
+  };
+
+  const testAlert = () => {
+    primeAlertAudio();
+    playBreathAlert();
   };
 
   return (
@@ -54,37 +48,34 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Cele treningowe</CardTitle>
-          <CardDescription>Progi używane w ocenie tempa i w podpowiedziach na żywo.</CardDescription>
+          <CardTitle>Tempo i oddech</CardTitle>
+          <CardDescription>Progi używane na żywo podczas nagrania i w raportach.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <Label>Docelowe tempo artykulacji</Label>
+              <Label>Docelowe tempo mowy</Label>
               <span className="tabular-nums">{s.targetArticulationRate[0].toFixed(1)}–{s.targetArticulationRate[1].toFixed(1)} syl/s</span>
             </div>
-            <Slider min={3} max={7} step={0.1} minStepsBetweenThumbs={3} value={s.targetArticulationRate} onValueChange={(v) => s.set({ targetArticulationRate: [v[0], v[1]] })} aria-label="Docelowe tempo artykulacji" />
+            <Slider min={3} max={7} step={0.1} minStepsBetweenThumbs={3} value={s.targetArticulationRate} onValueChange={(v) => s.set({ targetArticulationRate: [v[0], v[1]] })} aria-label="Docelowe tempo mowy" />
+            <p className="text-xs text-muted-foreground">Sylaby na sekundę, bez wliczania pauz. Typowe wyraźne tempo to 4,5–5,5.</p>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <Label>Maksymalny ciąg mowy bez oddechu</Label>
+              <Label>Maksymalnie bez oddechu</Label>
               <span className="tabular-nums">{s.maxContinuousSpeechSeconds} s</span>
             </div>
-            <Slider min={4} max={15} step={1} value={[s.maxContinuousSpeechSeconds]} onValueChange={([v]) => s.set({ maxContinuousSpeechSeconds: v })} aria-label="Maksymalny ciąg mowy bez oddechu" />
+            <Slider min={4} max={15} step={1} value={[s.maxContinuousSpeechSeconds]} onValueChange={([v]) => s.set({ maxContinuousSpeechSeconds: v })} aria-label="Maksymalnie bez oddechu" />
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <Label>Wagi składowych wyniku</Label>
-              <Button size="sm" variant="ghost" onClick={() => s.set({ scoreWeights: { ...DEFAULT_SETTINGS.scoreWeights } })}>Domyślne</Button>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="breath-alert">Przypomnienie o oddechu</Label>
+              <p className="text-xs text-muted-foreground">Krótki dźwięk (i wibracja na telefonie), gdy przekroczysz limit mówienia bez oddechu.</p>
             </div>
-            {(Object.keys(SCORE_LABELS) as (keyof ScoreWeights)[]).map((k) => (
-              <div key={k} className="grid grid-cols-[7rem_1fr_3rem] items-center gap-3 text-sm">
-                <span>{SCORE_LABELS[k]}</span>
-                <Slider min={0} max={1} step={0.05} value={[s.scoreWeights[k]]} onValueChange={([v]) => setWeight(k, v)} aria-label={`Waga: ${SCORE_LABELS[k]}`} />
-                <span className="tabular-nums text-right">{weightSum > 0 ? Math.round((s.scoreWeights[k] / weightSum) * 100) : 0}%</span>
-              </div>
-            ))}
-            <p className="text-xs text-muted-foreground">Wagi są normalizowane do 100%. Zmiana dotyczy nowych i ponownie analizowanych sesji.</p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" onClick={testAlert} aria-label="Odtwórz przykładowe przypomnienie"><Volume2 className="size-4" /> Test</Button>
+              <Switch id="breath-alert" checked={s.breathAlert} onCheckedChange={(v) => s.set({ breathAlert: v })} />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -93,7 +84,9 @@ export default function Settings() {
         <CardHeader>
           <CardTitle>Mikrofon i kalibracja</CardTitle>
           <CardDescription>
-            {baseline ? `Skalibrowano ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')} (${baseline.deviceLabel || 'mikrofon nieznany'}).` : 'Brak kalibracji – ocena używa ustawień domyślnych.'}
+            {baseline
+              ? `Skalibrowano ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')} (${baseline.deviceLabel || 'mikrofon nieznany'}).`
+              : 'Brak kalibracji – pomiar tempa używa ustawień domyślnych.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -106,35 +99,6 @@ export default function Settings() {
             {mics.length > 0 && mics.every((m) => !m.label) && <p className="text-xs text-muted-foreground mt-1">Nazwy urządzeń pojawią się po pierwszym udzieleniu dostępu do mikrofonu.</p>}
           </div>
           <Button asChild variant="outline"><Link to="/calibration">{baseline ? 'Kalibruj ponownie' : 'Przeprowadź kalibrację'}</Link></Button>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <Label htmlFor="captions">Napisy na żywo podczas nagrania</Label>
-              <p className="text-xs text-muted-foreground">
-                {liveCaptionsSupported()
-                  ? 'Używa rozpoznawania mowy przeglądarki – w Chrome dźwięk może być wysyłany do serwerów Google. Nie wpływa na ocenę.'
-                  : 'Niedostępne w tej przeglądarce.'}
-              </p>
-            </div>
-            <Switch id="captions" checked={s.liveCaptions} disabled={!liveCaptionsSupported()} onCheckedChange={(v) => s.set({ liveCaptions: v })} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Modele AI</CardTitle>
-          <CardDescription>
-            Status: {model.status === 'ready' ? `gotowe (${model.tier}, ${model.backend}${model.ctc ? '' : ', bez modelu fonetycznego'})` : model.status === 'loading' ? 'pobieranie…' : model.status === 'error' ? `błąd – ${model.error}` : 'nie pobrano'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <NativeSelect value={s.modelTier} onChange={(e) => setTier(e.target.value as typeof s.modelTier)} className="max-w-sm" aria-label="Wariant modelu">
-            <option value="auto">Automatycznie (wg urządzenia)</option>
-            <option value="lite">Lite – najmniejszy, bez oceny głosek</option>
-            <option value="standard">Standard</option>
-            <option value="pro">Pro – najdokładniejszy (WebGPU)</option>
-          </NativeSelect>
-          <p className="text-xs text-muted-foreground">Modele są pobierane raz i przechowywane w pamięci przeglądarki. Po zmianie wariantu sesje możesz przeanalizować ponownie z poziomu raportu.</p>
         </CardContent>
       </Card>
 

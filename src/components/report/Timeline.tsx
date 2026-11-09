@@ -1,64 +1,62 @@
 import { useMemo } from 'react';
-import type { TrainingSession } from '@/types';
+import type { Phrase, PhraseTempo, TrainingSession } from '@/types';
+import { T } from '@/engine/thresholds';
 
-const PX_PER_S = 70;
-const H = 210;
-const WAVE_Y = 28;
-const WAVE_H = 80;
-const LINE_Y = 122;
-const LINE_H = 60;
+const PX_PER_S = 60;
+const WAVE_Y = 8;
+const WAVE_H = 64;
+const BREATH_Y = 82;
+const BREATH_H = 14;
+const TEMPO_Y = 108;
+const TEMPO_H = 70;
+const MAX_RATE = 8;
+const H = TEMPO_Y + TEMPO_H + 26;
 
-const pauseColor = { normal: 'var(--color-muted-foreground)', breath: 'var(--color-info)', long: 'var(--color-bad)', hesitation: 'var(--color-warn)' } as const;
+export const TEMPO_COLOR: Record<PhraseTempo, string> = {
+  short: 'var(--color-muted-foreground)',
+  slow: 'var(--color-info)',
+  ok: 'var(--color-ok)',
+  fast: 'var(--color-warn)',
+  too_fast: 'var(--color-bad)',
+};
 
-function path(values: number[], toX: (i: number) => number, toY: (v: number) => number | null) {
-  let d = '';
-  let pen = false;
-  for (let i = 0; i < values.length; i++) {
-    const y = toY(values[i]);
-    if (y === null) { pen = false; continue; }
-    d += `${pen ? 'L' : 'M'}${toX(i).toFixed(1)},${y.toFixed(1)}`;
-    pen = true;
-  }
-  return d;
+export function breathColor(p: Phrase, maxMs: number): string {
+  const len = p.endMs - p.startMs;
+  if (len > maxMs) return 'var(--color-bad)';
+  if (len >= maxMs * T.breathWarnRatio) return 'var(--color-warn)';
+  return 'var(--color-ok)';
 }
 
-/** Waveform + IPUs + pauses + F0 / intensity + flag markers (7.2). Click to seek. */
-export function Timeline({ session, currentMs, onSeek, onSelectWord }: {
+/** Waveform + breath lane (phrases between breaths) + per-phrase tempo with the target band. Click to seek. */
+export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
   session: TrainingSession;
   currentMs: number;
   onSeek: (ms: number) => void;
-  onSelectWord: (i: number) => void;
+  onSelectPhrase: (i: number) => void;
 }) {
-  const durMs = session.durationSeconds * 1000;
+  const durMs = Math.max(1, session.durationSeconds * 1000);
   const W = Math.max(640, (durMs / 1000) * PX_PER_S);
   const x = (ms: number) => (ms / durMs) * W;
+  const rateY = (r: number) => TEMPO_Y + TEMPO_H - (Math.min(MAX_RATE, Math.max(0, r)) / MAX_RATE) * TEMPO_H;
   const tr = session.tracks;
+  const [lo, hi] = session.settings.targetArticulationRate;
+  const maxMs = session.settings.maxContinuousSpeechSeconds * 1000;
 
-  const geo = useMemo(() => {
-    if (!tr) return null;
+  const wave = useMemo(() => {
     const wf = tr.waveform;
     const peak = Math.max(1e-4, ...wf);
-    const wfStep = durMs / Math.max(1, wf.length);
-    let wave = '';
+    const step = durMs / Math.max(1, wf.length);
+    let d = '';
     for (let i = 0; i < wf.length; i++) {
       const h = (wf[i] / peak) * (WAVE_H / 2);
-      const xx = ((i * wfStep) / durMs) * W;
-      wave += `M${xx.toFixed(1)},${(WAVE_Y + WAVE_H / 2 - h).toFixed(1)}V${(WAVE_Y + WAVE_H / 2 + h).toFixed(1)}`;
+      const xx = ((i * step) / durMs) * W;
+      d += `M${xx.toFixed(1)},${(WAVE_Y + WAVE_H / 2 - h).toFixed(1)}V${(WAVE_Y + WAVE_H / 2 + h).toFixed(1)}`;
     }
-    // 10 ms frames; decimate to ~one point per 2 px for performance.
-    const step = Math.max(1, Math.round((2 / W) * tr.intensityDb.length));
-    const dec = (a: number[]) => a.filter((_, i) => i % step === 0);
-    const inten = dec(tr.intensityDb);
-    const f0 = dec(tr.f0Hz);
-    const fx = (i: number) => ((i * step * 10) / durMs) * W;
-    const intensity = path(inten, fx, (v) => (v < -70 ? null : LINE_Y + LINE_H - ((Math.max(-60, Math.min(0, v)) + 60) / 60) * LINE_H));
-    const lo = Math.log(60), hi = Math.log(400);
-    const pitch = path(f0, fx, (v) => (v > 0 ? LINE_Y + LINE_H - ((Math.log(Math.max(60, Math.min(400, v))) - lo) / (hi - lo)) * LINE_H : null));
-    return { wave, intensity, pitch };
+    return d;
   }, [tr, durMs, W]);
 
   const ticks: number[] = [];
-  const tickEvery = durMs > 60000 ? 5000 : 1000;
+  const tickEvery = durMs > 60000 ? 5000 : durMs > 20000 ? 2000 : 1000;
   for (let t = 0; t <= durMs; t += tickEvery) ticks.push(t);
 
   return (
@@ -68,40 +66,64 @@ export function Timeline({ session, currentMs, onSeek, onSelectWord }: {
           width={W}
           height={H}
           role="img"
-          aria-label="Oś czasu nagrania: przebieg, pauzy, intonacja i oznaczenia"
+          aria-label="Oś czasu nagrania: przebieg, frazy między oddechami i tempo każdej frazy"
           className="block cursor-pointer select-none"
           onClick={(e) => onSeek((e.nativeEvent.offsetX / W) * durMs)}
         >
-          {tr?.speechSegments.map((s, i) => (
+          {tr.speechSegments.map((s, i) => (
             <rect key={`s${i}`} x={x(s.startMs)} y={WAVE_Y} width={Math.max(1, x(s.endMs) - x(s.startMs))} height={WAVE_H} fill="var(--color-primary)" opacity={0.07} />
           ))}
+          <path d={wave} stroke="var(--color-foreground)" strokeOpacity={0.55} strokeWidth={1} />
+
           {session.pauses.map((p, i) => (
-            <rect key={`p${i}`} x={x(p.startMs)} y={WAVE_Y + WAVE_H - 6} width={Math.max(2, x(p.endMs) - x(p.startMs))} height={6} rx={2} fill={pauseColor[p.kind]} opacity={p.kind === 'normal' ? 0.35 : 0.85}>
-              <title>{`Pauza ${((p.endMs - p.startMs) / 1000).toFixed(1)} s${p.kind === 'hesitation' ? ' (wahanie)' : p.kind === 'long' ? ' (długa)' : p.kind === 'breath' ? ' (oddech)' : ''}`}</title>
-            </rect>
+            <g key={`p${i}`}>
+              <rect x={x(p.startMs)} y={BREATH_Y} width={Math.max(2, x(p.endMs) - x(p.startMs))} height={BREATH_H} rx={2} fill="var(--color-info)" opacity={p.kind === 'long' ? 0.35 : 0.8}>
+                <title>{`${p.kind === 'long' ? 'Długa pauza' : 'Oddech'} ${((p.endMs - p.startMs) / 1000).toFixed(1)} s`}</title>
+              </rect>
+            </g>
           ))}
-          {geo && <path d={geo.wave} stroke="var(--color-foreground)" strokeOpacity={0.55} strokeWidth={1} />}
-          {geo && <path d={geo.intensity} fill="none" stroke="var(--color-info)" strokeWidth={1.2} opacity={0.8} />}
-          {geo && <path d={geo.pitch} fill="none" stroke="var(--color-warn)" strokeWidth={1.6} />}
-          {session.flags.map((f, i) => (
+          {session.phrases.map((p, i) => (
             <rect
-              key={`f${i}`}
-              x={x(f.startMs)}
-              y={6 + (i % 2) * 8}
-              width={Math.max(4, x(f.endMs) - x(f.startMs))}
-              height={6}
+              key={`b${i}`}
+              x={x(p.startMs)}
+              y={BREATH_Y}
+              width={Math.max(2, x(p.endMs) - x(p.startMs))}
+              height={BREATH_H}
               rx={2}
-              fill={f.severity === 'red' ? 'var(--color-bad)' : 'var(--color-warn)'}
-              onClick={(e) => { e.stopPropagation(); if (f.wordIndex !== undefined) onSelectWord(f.wordIndex); else onSeek(f.startMs); }}
+              fill={breathColor(p, maxMs)}
+              opacity={0.75}
+              onClick={(e) => { e.stopPropagation(); onSelectPhrase(i); }}
             >
-              <title>{f.message}</title>
+              <title>{`Fraza ${i + 1}: ${((p.endMs - p.startMs) / 1000).toFixed(1)} s bez oddechu${p.overLimit ? ' — za długo!' : ''}`}</title>
             </rect>
           ))}
-          {session.words.filter((w) => w.status !== 'skipped').map((w) => (
-            <text key={`w${w.index}`} x={x(w.startMs)} y={LINE_Y - 4} fontSize={10} fill="var(--color-muted-foreground)" onClick={(e) => { e.stopPropagation(); onSelectWord(w.index); }}>
-              {w.text}
-            </text>
+
+          <rect x={0} y={rateY(hi)} width={W} height={rateY(lo) - rateY(hi)} fill="var(--color-ok)" opacity={0.1} />
+          <line x1={0} x2={W} y1={rateY(hi)} y2={rateY(hi)} stroke="var(--color-ok)" strokeDasharray="4 4" opacity={0.6} />
+          <line x1={0} x2={W} y1={rateY(lo)} y2={rateY(lo)} stroke="var(--color-ok)" strokeDasharray="4 4" opacity={0.6} />
+          {session.phrases.map((p, i) => (
+            <g key={`r${i}`} onClick={(e) => { e.stopPropagation(); onSelectPhrase(i); }}>
+              <line
+                x1={x(p.startMs)}
+                x2={Math.max(x(p.startMs) + 3, x(p.endMs))}
+                y1={rateY(p.rate)}
+                y2={rateY(p.rate)}
+                stroke={TEMPO_COLOR[p.tempo]}
+                strokeWidth={5}
+                strokeLinecap="round"
+                strokeDasharray={p.tempo === 'short' ? '3 4' : undefined}
+              >
+                <title>{`Fraza ${i + 1}: ${p.rate.toFixed(1)} syl/s${p.tempo === 'short' ? ' (za krótka do pewnego pomiaru)' : ''}`}</title>
+              </line>
+              {p.tempo !== 'short' && x(p.endMs) - x(p.startMs) > 34 && (
+                <text x={x(p.startMs)} y={rateY(p.rate) - 6} fontSize={10} fill="var(--color-muted-foreground)">{p.rate.toFixed(1)}</text>
+              )}
+            </g>
           ))}
+          {[2, 4, 6].map((v) => (
+            <text key={`y${v}`} x={2} y={rateY(v) + 3} fontSize={9} fill="var(--color-muted-foreground)" opacity={0.7}>{v}</text>
+          ))}
+
           {ticks.map((t) => (
             <g key={`t${t}`}>
               <line x1={x(t)} x2={x(t)} y1={H - 18} y2={H - 12} stroke="var(--color-border)" />
@@ -112,11 +134,11 @@ export function Timeline({ session, currentMs, onSeek, onSelectWord }: {
         </svg>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span><span className="inline-block w-3 h-1.5 rounded bg-primary/30 mr-1" />mowa (IPU)</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-info mr-1" />oddech</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-warn mr-1" />wahanie / intonacja (F0)</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-bad mr-1" />długa pauza / błąd</span>
-        <span><span className="inline-block w-3 h-0.5 bg-info mr-1 align-middle" />głośność</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-ok mr-1" />fraza w limicie oddechu</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-warn mr-1" />blisko limitu</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-bad mr-1" />za długo bez oddechu / za szybko</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-info mr-1" />oddech (pauza)</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-ok/20 mr-1" />docelowe tempo {lo}–{hi} syl/s</span>
       </div>
     </div>
   );

@@ -7,16 +7,14 @@ import { SpeedometerGauge } from './SpeedometerGauge';
 import { BreathBar } from './BreathBar';
 import { WaveformCanvas } from './WaveformCanvas';
 import { useSettings } from '@/store/settings';
-import { useModelStore } from '@/workers/client';
 import { formatMs } from '@/lib/utils';
 import type { SessionPhase } from '@/hooks/useTrainingSession';
 import { T } from '@/engine/thresholds';
 
-export function LiveHud({ stats, getDb, getSpeaking, captions, compact }: {
+export function LiveHud({ stats, getDb, getSpeaking, compact }: {
   stats: LiveStats | null;
   getDb: () => ArrayLike<number> | null;
   getSpeaking: () => boolean;
-  captions?: { final: string; interim: string };
   compact?: boolean;
 }) {
   const s = useSettings();
@@ -46,12 +44,6 @@ export function LiveHud({ stats, getDb, getSpeaking, captions, compact }: {
       {stats?.clipping && (
         <Alert variant="bad"><AlertTriangle className="size-4 mt-0.5" aria-hidden /> Przesterowanie! Odsuń mikrofon lub zmniejsz jego czułość w systemie.</Alert>
       )}
-      {captions && (captions.final || captions.interim) && (
-        <div className="rounded-md border bg-muted/40 p-3 text-sm max-h-28 overflow-y-auto" aria-live="polite">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground block mb-1">Napisy na żywo (tylko podgląd)</span>
-          {captions.final} <span className="text-muted-foreground">{captions.interim}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -65,18 +57,12 @@ export function RecordControls({ phase, onStart, onStop, startLabel = 'Rozpoczni
   stopLabel?: string;
   disabled?: boolean;
 }) {
-  const models = useModelStore((m) => m.status);
   if (phase === 'recording') {
     return <Button size="lg" variant="destructive" onClick={onStop}><Square aria-hidden /> {stopLabel}</Button>;
   }
   if (phase === 'processing' || phase === 'starting') {
     return (
-      <div className="flex items-center gap-3">
-        <Button size="lg" disabled><Loader2 className="animate-spin" aria-hidden /> {phase === 'starting' ? 'Uruchamiam mikrofon…' : 'Analizuję…'}</Button>
-        {phase === 'processing' && models !== 'ready' && (
-          <span className="text-xs text-muted-foreground max-w-xs">Modele nie są jeszcze gotowe – nagranie zostanie zapisane i przeanalizowane automatycznie po ich pobraniu.</span>
-        )}
-      </div>
+      <Button size="lg" disabled><Loader2 className="animate-spin" aria-hidden /> {phase === 'starting' ? 'Uruchamiam mikrofon…' : 'Analizuję…'}</Button>
     );
   }
   return <Button size="lg" onClick={onStart} disabled={disabled}><Mic aria-hidden /> {startLabel}</Button>;

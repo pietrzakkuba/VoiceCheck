@@ -25,13 +25,5 @@ if (existsSync(ortDist)) {
   }
 }
 
-// Transformers.js ships its own (dev) ONNX Runtime build – its WASM must match exactly.
-const tfOrtDist = join(nm, '@huggingface', 'transformers', 'node_modules', 'onnxruntime-web', 'dist');
-const tfOut = join(out, 'tf');
-mkdirSync(tfOut, { recursive: true });
-for (const f of existsSync(tfOrtDist) ? readdirSync(tfOrtDist) : readdirSync(ortDist)) {
-  if (/^ort-wasm-simd-threaded(\.jsep)?\.(wasm|mjs)$/.test(f)) copy(join(existsSync(tfOrtDist) ? tfOrtDist : ortDist, f), join(tfOut, f));
-}
-
 copy(join(nm, 'coi-serviceworker', 'coi-serviceworker.min.js'), join(root, 'public', 'coi-serviceworker.min.js'));
 console.log('[copy-assets] done');

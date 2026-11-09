@@ -20,7 +20,7 @@ export default defineConfig({
   preview: { headers: isolationHeaders },
   worker: { format: 'es' },
   optimizeDeps: {
-    exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+    exclude: ['onnxruntime-web'],
   },
   build: { target: 'es2022', chunkSizeWarningLimit: 4000 },
   test: {

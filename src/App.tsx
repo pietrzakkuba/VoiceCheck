@@ -1,37 +1,31 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { NavLink, Route, Routes } from 'react-router';
-import { AudioLines, BookOpen, BookOpenText, Gauge, LayoutDashboard, Loader2, Settings as SettingsIcon, SpellCheck } from 'lucide-react';
+import { AudioLines, BookOpenText, LayoutDashboard, Loader2, MessageCircle, Settings as SettingsIcon } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/overlay';
-import { ModelStatus } from '@/components/ModelStatus';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useApplyTheme } from '@/lib/theme';
-import { initModels } from '@/workers/client';
 import { preloadVad } from '@/audio/capture';
+import { migrateLegacySessions } from '@/lib/sessionPipeline';
 import { cn } from '@/lib/utils';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Calibration = lazy(() => import('@/pages/Calibration'));
 const TrainReading = lazy(() => import('@/pages/TrainReading'));
-const TrainPacer = lazy(() => import('@/pages/TrainPacer'));
-const TrainDiction = lazy(() => import('@/pages/TrainDiction'));
-const TrainStory = lazy(() => import('@/pages/TrainStory'));
+const TrainSpeaking = lazy(() => import('@/pages/TrainSpeaking'));
 const SessionReport = lazy(() => import('@/pages/SessionReport'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const NAV = [
   { to: '/', label: 'Pulpit', icon: LayoutDashboard, end: true },
   { to: '/reading', label: 'Czytanie', icon: BookOpenText },
-  { to: '/pacer', label: 'Pacer', icon: Gauge },
-  { to: '/diction', label: 'Dykcja', icon: SpellCheck },
-  { to: '/storytelling', label: 'Opowiadanie historii', icon: BookOpen },
+  { to: '/speaking', label: 'Swobodne mówienie', icon: MessageCircle },
   { to: '/settings', label: 'Ustawienia', icon: SettingsIcon },
 ];
 
 export default function App() {
   useApplyTheme();
   useEffect(() => {
-    void initModels();
-    void preloadVad();
+    void preloadVad().then(() => migrateLegacySessions());
   }, []);
 
   return (
@@ -63,7 +57,6 @@ export default function App() {
             </nav>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <ThemeSwitch />
-              <ModelStatus />
             </div>
           </div>
         </header>
@@ -80,9 +73,7 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/calibration" element={<Calibration />} />
               <Route path="/reading" element={<TrainReading />} />
-              <Route path="/pacer" element={<TrainPacer />} />
-              <Route path="/diction" element={<TrainDiction />} />
-              <Route path="/storytelling" element={<TrainStory />} />
+              <Route path="/speaking" element={<TrainSpeaking />} />
               <Route path="/session/:id" element={<SessionReport />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Dashboard />} />
