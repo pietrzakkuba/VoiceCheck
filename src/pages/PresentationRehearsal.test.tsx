@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   maxBreathSeconds: 8,
   setSettings: vi.fn(),
   toggleScroll: undefined as ((checked: boolean) => void) | undefined,
-  readingProps: undefined as { autoScroll: boolean; syllablesRead: number | null } | undefined,
+  readingProps: undefined as { autoScroll: boolean; syllablesRead: number | null; onAutoScrollChange: (enabled: boolean) => void } | undefined,
 }));
 
 vi.mock('@/store/settings', async (importOriginal) => {
@@ -170,6 +170,19 @@ describe('presentation rehearsal', () => {
     expect(mocks.readingProps?.syllablesRead).toBeNull();
   });
 
+  it('switches auto-scroll off in settings when the text is manually scrolled', () => {
+    mocks.phase = 'recording';
+    mocks.stats = liveStats(5);
+    renderToStaticMarkup(<PresentationRehearsal />);
+    mocks.readingProps!.onAutoScrollChange(false);
+    const html = renderToStaticMarkup(<PresentationRehearsal />);
+    expect(mocks.setSettings).toHaveBeenCalledWith({ readingAutoScroll: false });
+    expect(html).toContain('aria-checked="false"');
+    expect(mocks.readingProps?.autoScroll).toBe(false);
+    expect(html).not.toContain('Śledzenie wstrzymane');
+    expect(html).not.toContain('Wznów śledzenie');
+  });
+
   it('shows a message when the presentation does not exist', () => {
     mocks.presentation = null;
     const html = renderToStaticMarkup(<PresentationRehearsal />);
@@ -215,6 +228,23 @@ describe('presentation rehearsal', () => {
   });
 
   it.each([
+    [5, 'warn', 'text-warn'],
+    [3, 'warn', 'text-warn'],
+    [null, 'warn', 'text-warn'],
+    [7, 'warn', 'text-bad'],
+    [5, 'critical', 'text-bad'],
+    [6, 'critical', 'text-bad'],
+    [5, 'ok', 'text-ok'],
+  ] as const)('combines pace %s and breath %s into frame color %s', (rate, breathState, cls) => {
+    mocks.phase = 'recording';
+    mocks.stats = { ...liveStats(rate), breathState };
+    const html = renderToStaticMarkup(<PresentationRehearsal />);
+    expect(html).toContain(`border-current py-0 transition-colors duration-300 ${cls}`);
+    expect(html).not.toContain('cv-rehearsal-critical');
+    expect(html).not.toContain('cv-rehearsal-warning');
+  });
+
+  it.each([
     ['starting', liveStats(7), 'Uruchamianie…'],
     ['recording', liveStats(7, true), 'Kalibracja…'],
     ['processing', liveStats(7), 'Analizowanie…'],
@@ -227,6 +257,8 @@ describe('presentation rehearsal', () => {
     expect(html).toContain('Oddech');
     expect(html).toContain(label);
     expect(html).toContain('aria-valuenow="0"');
+    expect(html).toContain('border-current py-0 transition-colors duration-300 text-muted-foreground');
+    expect(html).not.toContain('cv-rehearsal-critical');
     expect(html).not.toContain('Weź oddech!');
   });
 
@@ -262,6 +294,7 @@ describe('presentation rehearsal', () => {
     mocks.stats = liveStats(rate);
     const html = renderToStaticMarkup(<PresentationRehearsal />);
     expect(html).toContain(`border-current py-0 transition-colors duration-300 ${cls}`);
+    expect(html).not.toContain('cv-rehearsal-critical');
     expect(html).toContain(`<span role="status">${label}</span>`);
     expect(html).toContain(`${rate.toFixed(1)} <span`);
     expect(html.indexOf('Tempo czytania')).toBeLessThan(html.indexOf('<p class="text-xl'));

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Clock, Gauge, Loader2, Pencil, Presentation as PresentationIcon } from 'lucide-react';
@@ -26,6 +26,7 @@ export default function PresentationRehearsal() {
   const maxBreathSeconds = useSettings((s) => s.maxContinuousSpeechSeconds);
   const autoScroll = useSettings((s) => s.readingAutoScroll);
   const setSettings = useSettings((s) => s.set);
+  const setAutoScroll = useCallback((readingAutoScroll: boolean) => setSettings({ readingAutoScroll }), [setSettings]);
   const ts = useTrainingSession();
   const nav = useNavigate();
   const tokens = useMemo(() => normalizeText(text), [text]);
@@ -34,6 +35,10 @@ export default function PresentationRehearsal() {
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
   const rate = ts.phase === 'recording' && !ts.stats?.calibrating ? ts.stats?.syllableRate ?? null : null;
   const pace = rateZone(rate, target);
+  const breathState = ts.phase === 'recording' && !ts.stats?.calibrating ? ts.stats?.breathState ?? 'ok' : 'ok';
+  const frameColor = breathState === 'critical' || pace.cls === 'text-bad' ? 'text-bad'
+    : breathState === 'warn' ? 'text-warn'
+    : pace.cls;
   const breathInactiveLabel = ts.phase === 'starting' ? 'Uruchamianie…'
     : ts.phase === 'processing' ? 'Analizowanie…'
     : ts.stats?.calibrating ? 'Kalibracja…'
@@ -94,7 +99,7 @@ export default function PresentationRehearsal() {
             Szacuje postęp na podstawie wykrytych sylab. Zatrzymuje się podczas ciszy.
           </p>
         </div>
-        <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={(readingAutoScroll) => setSettings({ readingAutoScroll })} aria-describedby="reading-auto-scroll-description" />
+        <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
       </div>
 
       {!active && (
@@ -124,10 +129,11 @@ export default function PresentationRehearsal() {
       )}
 
       {active && (
-        <Card className={cn('gap-0 border-4 border-current py-0 transition-colors duration-300', pace.cls)}>
+        <Card className={cn('gap-0 border-4 border-current py-0 transition-colors duration-300', frameColor)}>
           <RehearsalText
             text={text}
             autoScroll={autoScroll}
+            onAutoScrollChange={setAutoScroll}
             syllablesRead={ts.phase === 'recording' && ts.stats && !ts.stats.calibrating ? ts.stats.syllables : null}
           >
             <div className="grid w-full grid-cols-2 gap-3">

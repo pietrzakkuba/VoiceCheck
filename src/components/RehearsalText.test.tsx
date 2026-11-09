@@ -17,15 +17,14 @@ const mocks = vi.hoisted(() => ({
   effectIndex: 0,
   refIndex: 0,
   refs: [] as Array<{ current: unknown }>,
-  paused: false,
-  resume: undefined as (() => void) | undefined,
+  autoScroll: true,
+  onAutoScrollChange: vi.fn<(enabled: boolean) => void>(),
   listeners: new Map<string, EventListener>(),
 }));
 
 vi.mock('react', async (importOriginal) => ({
   ...await importOriginal<typeof import('react')>(),
   useRef: () => mocks.refs[mocks.refIndex++],
-  useState: () => [mocks.paused, (paused: boolean) => { mocks.paused = paused; }],
   useEffect: (effect: () => void | (() => void), deps: readonly unknown[]) => {
     const index = mocks.effectIndex++;
     const previous = mocks.effectDeps[index];
@@ -39,20 +38,13 @@ vi.mock('react', async (importOriginal) => ({
   },
 }));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => {
-    mocks.resume = onClick;
-    return <button>{children}</button>;
-  },
-}));
-
-function renderText(syllablesRead: number | null, autoScroll = true, text = 'Ala ma kota.\n\nDwa zdania.') {
+function renderText(syllablesRead: number | null, autoScroll = mocks.autoScroll, text = 'Ala ma kota.\n\nDwa zdania.') {
   mocks.effects = [];
   mocks.refIndex = 0;
   mocks.effectIndex = 0;
-  mocks.resume = undefined;
+  mocks.autoScroll = autoScroll;
   const html = renderToStaticMarkup(
-    <RehearsalText text={text} syllablesRead={syllablesRead} autoScroll={autoScroll}>
+    <RehearsalText text={text} syllablesRead={syllablesRead} autoScroll={autoScroll} onAutoScrollChange={mocks.onAutoScrollChange}>
       <div>Tempo</div>
     </RehearsalText>,
   );
@@ -69,7 +61,8 @@ function dispatch(type: string, properties: Record<string, unknown> = {}, target
 
 describe('rehearsal text auto-scroll', () => {
   beforeEach(() => {
-    mocks.paused = false;
+    mocks.autoScroll = true;
+    mocks.onAutoScrollChange.mockReset().mockImplementation((enabled) => { mocks.autoScroll = enabled; });
     mocks.effectDeps = [];
     mocks.cleanups = [];
     mocks.listeners.clear();
@@ -110,36 +103,41 @@ describe('rehearsal text auto-scroll', () => {
     renderText(3);
     renderText(5, false);
     expect(mocks.viewport.scrollTop).toBe(225);
-    renderText(5);
+    renderText(5, true);
     expect(mocks.viewport.scrollTop).toBe(625);
   });
 
-  it('does not pause in response to its own scroll events', () => {
+  it('does not disable auto-scroll in response to its own scroll events', () => {
     renderText(3);
     dispatch('scroll');
     const html = renderText(5);
     expect(mocks.viewport.scrollTop).toBe(625);
     expect(html).not.toContain('Wznów śledzenie');
+    expect(mocks.onAutoScrollChange).not.toHaveBeenCalled();
   });
 
-  it('reserves the same toolbar space before and after pausing without moving the text', () => {
+  it('does not show a pause toolbar or reserve empty space after manual scrolling', () => {
     const following = renderText(3);
     dispatch('wheel', { deltaY: 100 });
     const paused = renderText(3);
-    expect(following).toContain('flex h-8 w-full');
-    expect(paused).toContain('flex h-8 w-full');
+    expect(following).not.toContain('flex h-8 w-full');
+    expect(paused).not.toContain('flex h-8 w-full');
+    expect(paused).not.toContain('Śledzenie wstrzymane');
+    expect(paused).not.toContain('Wznów śledzenie');
+    expect(mocks.onAutoScrollChange).toHaveBeenCalledWith(false);
     expect(mocks.viewport.scrollTop).toBe(225);
     expect(following).toContain('[overflow-anchor:none]');
     expect(following).toContain('[scrollbar-gutter:stable]');
   });
 
-  it('pauses immediately on wheel input instead of overriding the manual movement', () => {
+  it('disables auto-scroll immediately on wheel input instead of overriding manual movement', () => {
     renderText(3);
     dispatch('wheel', { deltaY: 100 });
     const html = renderText(5);
     expect(mocks.viewport.scrollTop).toBe(225);
-    expect(html).toContain('Śledzenie wstrzymane');
-    expect(html).toContain('Wznów śledzenie');
+    expect(html).not.toContain('Śledzenie wstrzymane');
+    expect(html).not.toContain('Wznów śledzenie');
+    expect(mocks.autoScroll).toBe(false);
     mocks.viewport.scrollTop = 500;
     dispatch('scroll');
     renderText(6);
@@ -187,14 +185,13 @@ describe('rehearsal text auto-scroll', () => {
     expect(mocks.viewport.scrollTop).toBe(625);
   });
 
-  it('resumes at the latest estimated reading position rather than at the pause position', () => {
+  it('follows the latest reading position when the switch is enabled again', () => {
     renderText(3);
     dispatch('wheel', { deltaY: -100 });
     mocks.viewport.scrollTop = 50;
     renderText(5);
-    expect(mocks.resume).toBeDefined();
-    mocks.resume!();
-    const html = renderText(5);
+    expect(mocks.onAutoScrollChange).toHaveBeenCalledWith(false);
+    const html = renderText(5, true);
     expect(mocks.viewport.scrollTop).toBe(625);
     expect(html).not.toContain('Wznów śledzenie');
     dispatch('scroll');
@@ -202,14 +199,14 @@ describe('rehearsal text auto-scroll', () => {
     expect(mocks.viewport.scrollTop).toBe(1000);
   });
 
-  it('clears the temporary pause when auto-scroll is switched off and back on', () => {
+  it('allows auto-scroll to be switched back on after manual scrolling', () => {
     renderText(3);
     dispatch('wheel', { deltaY: 100 });
     renderText(5);
     const disabled = renderText(5, false);
     expect(disabled).not.toContain('Wznów śledzenie');
     expect(mocks.viewport.scrollTop).toBe(225);
-    renderText(5);
+    renderText(5, true);
     expect(mocks.viewport.scrollTop).toBe(625);
   });
 
@@ -222,11 +219,11 @@ describe('rehearsal text auto-scroll', () => {
   });
 
   it('removes input listeners when auto-scroll is disabled or the component is unmounted', () => {
-    renderText(3);
+    renderText(3, true);
     expect(mocks.listeners.size).toBe(5);
     renderText(3, false);
     expect(mocks.listeners.size).toBe(0);
-    renderText(3);
+    renderText(3, true);
     expect(mocks.listeners.size).toBe(5);
     mocks.cleanups.forEach((cleanup) => cleanup?.());
     expect(mocks.listeners.size).toBe(0);

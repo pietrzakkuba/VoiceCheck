@@ -31,15 +31,15 @@ export function PresentationList() {
           </CardHeader>
         </Card>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {items.map((p) => {
             const st = textStats(p.text, target);
             const over = p.targetDurationSeconds !== undefined && st.estimatedSeconds > p.targetDurationSeconds;
             return (
-              <li key={p.id}>
+              <li key={p.id} className="min-w-0">
                 <div className="flex h-full flex-col gap-2 rounded-xl border bg-card p-4">
                   <Link to={`/presentations/${p.id}/rehearse`} className="font-medium hover:text-primary truncate">{p.title}</Link>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{p.text}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2 wrap-anywhere">{p.text}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span>{st.words} słów</span>
                     <span className={over ? 'text-warn' : undefined} title="Szacowany czas w Twoim tempie docelowym">

@@ -1,4 +1,4 @@
-# CzystaMowa
+# VoiceCheck
 
 Trener wystąpień i prezentacji po polsku: ćwicz wygłaszanie własnego tekstu, kontrolując tempo i oddech. Działa
 w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opuszczają komputera.
@@ -15,15 +15,17 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   Domyślnie przewija się automatycznie zgodnie z postępem szacowanym z wykrytych sylab,
   bez przewijania podczas ciszy i kalibracji. Przełącznik na ekranie treningu pozwala wyłączyć
   tę funkcję; wybór jest zapamiętywany. Nie jest to rozpoznawanie wypowiadanych słów.
-  Ręczne przewinięcie wstrzymuje śledzenie. Przycisk „Wznów śledzenie” w przypiętym nagłówku
-  przywraca przewijanie do aktualnej szacowanej pozycji czytania.
+  Ręczne przewinięcie wyłącza automatyczne przewijanie i jego przełącznik. Ponowne włączenie
+  przełącznika przywraca przewijanie do aktualnej szacowanej pozycji czytania.
   Licznik przy tekście i w raporcie pokazuje czas całej sesji (z pauzami i kalibracją mikrofonu),
   pozostały czas lub przekroczenie limitu. Raport zachowuje limit obowiązujący na początku próby;
   starsze sesje bez zapisanego limitu pokazują tylko czas trwania.
 - **Na żywo podczas nagrania**: panel tempa (sylaby/s), pasek oddechu, przebieg fali,
   ostrzeżenia o szumie i przesterowaniu. Po przekroczeniu limitu mówienia bez oddechu aplikacja odtwarza krótki
   dźwięk (i wibrację na telefonie).
-  Kolorowa ramka tekstu i przypięty nad nim status tempa pozwalają śledzić tempo bez odrywania wzroku od treści.
+  Przypięty nad tekstem status tempa pozwala śledzić tempo bez odrywania wzroku od treści.
+  Ramka tekstu na bieżąco zmienia kolor zgodnie z tempem i oddechem, bez poświaty i zmiany tła tekstu.
+  Żółte ostrzeżenie oddechu zmienia ramkę na żółtą, a czerwony alarm tempa lub oddechu ma pierwszeństwo.
   Tempo ma osobny kolorowy panel z dużą wartością i wyraźnym statusem.
   Obok niego stale widoczny jest panel oddechu, również podczas uruchamiania i kalibracji mikrofonu.
   Panele mają stały układ, a zmiany komunikatów nie przesuwają tekstu. Ostrzeżenia oddechu zmieniają

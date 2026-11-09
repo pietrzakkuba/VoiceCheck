@@ -1,21 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { normalizeText } from '@/engine/normalize';
 import { countTextSyllables } from '@/engine/syllables';
 
-export function RehearsalText({ text, syllablesRead, autoScroll, children }: {
+export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollChange, children }: {
   text: string;
   syllablesRead: number | null;
   autoScroll: boolean;
+  onAutoScrollChange: (enabled: boolean) => void;
   children: ReactNode;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
   const expectedScrollTop = useRef(0);
-  const pausedRef = useRef(false);
-  const [paused, setPaused] = useState(false);
+  const interruptedRef = useRef(false);
   const chunks = useMemo(() => {
     let endSyllable = 0;
     return (text.match(/\s+|\S+/g) ?? []).map((raw) => {
@@ -24,14 +23,14 @@ export function RehearsalText({ text, syllablesRead, autoScroll, children }: {
     });
   }, [text]);
 
-  const pause = useCallback(() => {
-    pausedRef.current = true;
-    setPaused(true);
-  }, []);
+  const disableAutoScroll = useCallback(() => {
+    if (interruptedRef.current) return;
+    interruptedRef.current = true;
+    onAutoScrollChange(false);
+  }, [onAutoScrollChange]);
 
   useEffect(() => {
-    pausedRef.current = false;
-    setPaused(false);
+    interruptedRef.current = false;
     expectedScrollTop.current = viewportRef.current?.scrollTop ?? 0;
   }, [autoScroll, text]);
 
@@ -39,20 +38,20 @@ export function RehearsalText({ text, syllablesRead, autoScroll, children }: {
     const viewport = viewportRef.current;
     if (!autoScroll || !viewport) return;
     const onScroll = () => {
-      if (Math.abs(viewport.scrollTop - expectedScrollTop.current) > 1) pause();
+      if (Math.abs(viewport.scrollTop - expectedScrollTop.current) > 1) disableAutoScroll();
     };
     const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && event.deltaY !== 0 && viewport.scrollHeight > viewport.clientHeight) pause();
+      if (!event.ctrlKey && event.deltaY !== 0 && viewport.scrollHeight > viewport.clientHeight) disableAutoScroll();
     };
     const onTouchMove = (event: TouchEvent) => {
-      if (event.touches.length === 1 && viewport.scrollHeight > viewport.clientHeight) pause();
+      if (event.touches.length === 1 && viewport.scrollHeight > viewport.clientHeight) disableAutoScroll();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.defaultPrevented && event.target === viewport && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pause();
+      if (!event.defaultPrevented && event.target === viewport && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) disableAutoScroll();
     };
     const onPointerDown = (event: PointerEvent) => {
       const scrollbarStart = viewport.getBoundingClientRect().left + viewport.clientLeft + viewport.clientWidth;
-      if (event.button === 0 && event.target === viewport && event.clientX >= scrollbarStart && viewport.scrollHeight > viewport.clientHeight) pause();
+      if (event.button === 0 && event.target === viewport && event.clientX >= scrollbarStart && viewport.scrollHeight > viewport.clientHeight) disableAutoScroll();
     };
     viewport.addEventListener('scroll', onScroll, { passive: true });
     viewport.addEventListener('wheel', onWheel, { passive: true });
@@ -66,13 +65,13 @@ export function RehearsalText({ text, syllablesRead, autoScroll, children }: {
       viewport.removeEventListener('keydown', onKeyDown);
       viewport.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [autoScroll, pause]);
+  }, [autoScroll, disableAutoScroll]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
     const header = headerRef.current;
     const paragraph = textRef.current;
-    if (!autoScroll || pausedRef.current || syllablesRead === null || !viewport || !header || !paragraph || viewport.clientHeight === 0) return;
+    if (!autoScroll || interruptedRef.current || syllablesRead === null || !viewport || !header || !paragraph || viewport.clientHeight === 0) return;
     const next = chunks.findIndex((chunk) => chunk.endSyllable > syllablesRead);
     const word = paragraph.children[next < 0 ? chunks.length - 1 : next];
     if (!word) return;
@@ -81,27 +80,12 @@ export function RehearsalText({ text, syllablesRead, autoScroll, children }: {
     const wordY = viewport.scrollTop + word.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
     viewport.scrollTop = Math.max(0, Math.min(wordY - followY, viewport.scrollHeight - viewport.clientHeight));
     expectedScrollTop.current = viewport.scrollTop;
-  }, [autoScroll, syllablesRead, chunks, paused]);
+  }, [autoScroll, syllablesRead, chunks]);
 
   return (
     <div ref={viewportRef} className="max-h-[65vh] overflow-y-auto rounded-lg text-card-foreground [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
       <div ref={headerRef} className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
         {children}
-        {autoScroll && (
-          <div className="flex h-8 w-full items-center justify-between gap-2">
-            {paused && (
-              <>
-                <span role="status" className="truncate text-sm text-muted-foreground">Śledzenie wstrzymane</span>
-                <Button className="shrink-0" size="sm" variant="outline" onClick={() => {
-                  pausedRef.current = false;
-                  setPaused(false);
-                }}>
-                  Wznów śledzenie
-                </Button>
-              </>
-            )}
-          </div>
-        )}
       </div>
       <CardContent className="py-5">
         <p ref={textRef} className="text-xl md:text-2xl leading-relaxed md:leading-relaxed whitespace-pre-wrap">

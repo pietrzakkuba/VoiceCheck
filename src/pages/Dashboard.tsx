@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Crosshair, Loader2, X } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Crosshair, History, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionList } from '@/components/SessionList';
 import { PresentationList } from '@/components/PresentationList';
@@ -23,7 +22,7 @@ export default function Dashboard() {
   const showOnboarding = baseline === null && !onboardingDismissed;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {showOnboarding && (
         <Alert variant="info">
           <Crosshair className="size-4 mt-0.5" aria-hidden />
@@ -59,19 +58,28 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Historia sesji</CardTitle>
-          <CardDescription>{sessions.length} sesji{baseline ? ` · kalibracja z ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')}` : ''}</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <section className="space-y-5" aria-labelledby="history-heading">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="history-heading" className="text-xl font-semibold flex items-center gap-2"><History className="size-6 text-primary" aria-hidden /> Historia sesji</h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Wszystkie Twoje nagrane próby z wynikami tempa i oddechu – otwórz sesję, by zobaczyć szczegóły i porównać postępy.
+            </p>
+            <p className="text-muted-foreground text-xs mt-1">
+              {sessions.length} sesji{baseline ? ` · kalibracja z ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')}` : ''}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-2">
           {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Brak sesji. Dodaj prezentację i nagraj pierwszą próbę.</p>
+            <p className="p-2 text-sm text-muted-foreground">Brak sesji. Dodaj prezentację i nagraj pierwszą próbę.</p>
           ) : (
-            <SessionList sessions={sessions.slice(0, 50)} titles={titles} />
+            <div className="max-h-60 overflow-y-auto px-2" tabIndex={0} aria-label="Lista sesji">
+              <SessionList sessions={sessions.slice(0, 50)} titles={titles} />
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

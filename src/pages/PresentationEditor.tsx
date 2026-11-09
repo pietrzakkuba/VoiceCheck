@@ -120,8 +120,11 @@ export default function PresentationEditor() {
             <p className="text-xs text-muted-foreground text-right">{text.length} / {MAX_PRESENTATION_CHARS} znaków</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="minutes">Czas na wystąpienie (minuty, opcjonalnie)</Label>
-            <Input id="minutes" inputMode="decimal" className="max-w-40" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="np. 5" aria-invalid={duration === null} />
+            <Label htmlFor="minutes" className="block">Czas na wystąpienie <span className="font-normal text-muted-foreground">(opcjonalnie)</span></Label>
+            <div className="flex items-center gap-2">
+              <Input id="minutes" inputMode="decimal" className="w-24" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="np. 5" aria-invalid={duration === null} />
+              <span className="text-sm text-muted-foreground">min</span>
+            </div>
             {over && (
               <p className="text-sm text-warn">
                 Przy Twoim tempie tekst zajmie ok. {formatDuration(stats.estimatedSeconds)} – więcej niż limit {formatDuration(duration)}, a do tego dojdą pauzy.

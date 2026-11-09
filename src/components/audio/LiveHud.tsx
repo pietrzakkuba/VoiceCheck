@@ -54,14 +54,14 @@ export function RecordControls({ phase, onStart, onStop, startLabel = 'Rozpoczni
   disabled?: boolean;
 }) {
   if (phase === 'recording') {
-    return <Button size="lg" variant="destructive" onClick={onStop}><Square aria-hidden /> {stopLabel}</Button>;
+    return <Button size="lg" variant="destructive" className="cursor-pointer" onClick={onStop}><Square aria-hidden /> {stopLabel}</Button>;
   }
   if (phase === 'processing' || phase === 'starting') {
     return (
       <Button size="lg" disabled><Loader2 className="animate-spin" aria-hidden /> {phase === 'starting' ? 'Uruchamiam mikrofon…' : 'Analizuję…'}</Button>
     );
   }
-  return <Button size="lg" onClick={onStart} disabled={disabled}><Mic aria-hidden /> {startLabel}</Button>;
+  return <Button size="lg" className="cursor-pointer" onClick={onStart} disabled={disabled}><Mic aria-hidden /> {startLabel}</Button>;
 }
 
 export function SessionErrors({ error, deviceWarning }: { error: string | null; deviceWarning: string | null }) {

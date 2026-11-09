@@ -34,7 +34,7 @@ export default function App() {
           <div className="mx-auto max-w-6xl px-4 min-h-14 py-2 flex flex-wrap items-center gap-4">
             <NavLink to="/" className="flex items-center gap-2 font-semibold shrink-0">
               <AudioLines className="size-5 text-primary" aria-hidden />
-              <span>Czysta<span className="text-primary">Mowa</span></span>
+              <span>Voice<span className="text-primary">Check</span></span>
             </NavLink>
             <nav className="order-last w-full min-w-0 flex items-center gap-1 overflow-x-auto sm:order-none sm:w-auto sm:flex-1" aria-label="Główna nawigacja">
               {NAV.map(({ to, label, icon: Icon, end }) => (
@@ -84,7 +84,7 @@ export default function App() {
           </Suspense>
         </main>
         <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-          CzystaMowa · cała analiza odbywa się lokalnie w przeglądarce – nagrania nie opuszczają urządzenia.
+          VoiceCheck · cała analiza odbywa się lokalnie w przeglądarce – nagrania nie opuszczają urządzenia.
         </footer>
       </div>
     </TooltipProvider>

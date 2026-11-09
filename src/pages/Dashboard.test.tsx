@@ -40,6 +40,8 @@ describe('dashboard presentations', () => {
     expect(html.match(/<h1\b/g)).toHaveLength(1);
     expect(html).not.toContain('href="/presentations"');
     expect(html).not.toContain('Wykresy postępów');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('id="session-history"');
   });
 
   it('keeps creating a presentation available when the library is empty', () => {
