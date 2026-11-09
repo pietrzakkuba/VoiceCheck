@@ -4,11 +4,13 @@ import { BookOpenText, Repeat } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { NativeSelect, Textarea, Label, Alert } from '@/components/ui/primitives';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
+import { rateZone } from '@/components/audio/SpeedometerGauge';
 import { TargetText } from '@/components/TargetText';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
 import { READING_TEXTS } from '@/data/exercises';
 import { normalizeText } from '@/engine/normalize';
 import { countTextSyllables } from '@/engine/syllables';
+import { cn } from '@/lib/utils';
 
 const MAX_CHARS = 4000;
 
@@ -23,6 +25,13 @@ export default function TrainReading() {
   const tokens = useMemo(() => normalizeText(text), [text]);
   const syl = useMemo(() => countTextSyllables(tokens.map((t) => t.word)), [tokens]);
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
+  const rate = ts.phase === 'recording' && !ts.stats?.calibrating ? ts.stats?.syllableRate ?? null : null;
+  const pace = rateZone(rate);
+  const paceLabel = ts.phase === 'starting' ? 'Uruchamiam mikrofon…'
+    : ts.phase === 'processing' ? 'Analizuję nagranie…'
+    : ts.stats?.calibrating ? 'Zachowaj ciszę – kalibracja'
+    : rate === null ? 'Czytaj – mierzę tempo…'
+    : pace.label;
 
   const start = () =>
     ts.start({
@@ -87,10 +96,24 @@ export default function TrainReading() {
       )}
 
       {active && (
-        <Card>
-          <CardContent>
-            <TargetText tokens={tokens} />
-          </CardContent>
+        <Card className={cn('gap-0 border-4 border-current py-0 transition-colors duration-300', pace.cls)}>
+          <div className="max-h-[65vh] overflow-y-auto rounded-lg text-card-foreground" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa">
+            <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tempo czytania</div>
+                <div className={cn('flex items-center gap-2 text-lg font-semibold', pace.cls)}>
+                  <span className="size-4 shrink-0 rounded-full bg-current" aria-hidden />
+                  <span role="status">{paceLabel}</span>
+                </div>
+              </div>
+              <div className={cn('text-2xl font-semibold tabular-nums', pace.cls)}>
+                {rate !== null ? rate.toFixed(1) : '–'} <span className="text-sm font-normal text-muted-foreground">syl/s</span>
+              </div>
+            </div>
+            <CardContent className="py-5">
+              <TargetText tokens={tokens} />
+            </CardContent>
+          </div>
         </Card>
       )}
 

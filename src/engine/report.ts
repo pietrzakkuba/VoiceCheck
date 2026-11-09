@@ -89,7 +89,7 @@ function issueDefs(input: AnalysisInput, ctx: { subCategory?: UnitCategory; endC
     fillers: {
       title: 'Wypełniacze („yyy”, „eee”, „jakby”)', flagTypes: ['FILLER_SOUND', 'FILLER_WORD', 'PROLONGATION'],
       why: 'Wypełniacze rozpraszają i sprawiają wrażenie niepewności.',
-      exercise: 'Zamiast „yyy” zrób cichą pauzę – Rozmowa z botem pozwala to przećwiczyć.', link: '/bot',
+      exercise: 'Zamiast „yyy” zrób cichą pauzę – Opowiadanie historii pozwala to przećwiczyć.', link: '/storytelling',
     },
     noBreath: {
       title: 'Za długo bez oddechu', flagTypes: ['NO_BREATH'],
@@ -104,12 +104,12 @@ function issueDefs(input: AnalysisInput, ctx: { subCategory?: UnitCategory; endC
     hesitation: {
       title: 'Pauzy wahania', flagTypes: ['HESITATION_PAUSE', 'UNEXPECTED_PAUSE'],
       why: 'Długie przerwy w środku myśli brzmią jak zgubienie wątku.',
-      exercise: 'Rozmowa z botem: zaplanuj pierwsze zdanie odpowiedzi, zanim zaczniesz mówić.', link: '/bot',
+      exercise: 'Opowiadanie historii: zaplanuj pierwsze zdanie historii, zanim zaczniesz mówić.', link: '/storytelling',
     },
     repetition: {
       title: 'Powtórzenia słów', flagTypes: ['REPETITION'],
       why: 'Restartowanie zdań („i to, i to jest”) sygnalizuje pośpiech.',
-      exercise: 'Mów wolniej i kończ każde rozpoczęte zdanie.', link: '/bot',
+      exercise: 'Mów wolniej i kończ każde rozpoczęte zdanie.', link: '/storytelling',
     },
     sentenceEnds: {
       title: 'Cichniesz na końcu zdań', flagTypes: ['SWALLOWED_SENTENCE_ENDING'],

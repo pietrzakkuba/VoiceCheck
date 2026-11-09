@@ -1,4 +1,4 @@
-# ClearVoice AI
+# CzystaMowa
 
 Trener dykcji i tempa mówienia po polsku. Działa w całości w przeglądarce: nagrania, modele AI i historia sesji
 nie opuszczają komputera (wyjątek: opcjonalne napisy na żywo w Chrome, patrz niżej).
@@ -9,18 +9,21 @@ Specyfikacja techniczna: [`specyfikacja_techniczna_clearvoice_ai.md`](specyfikac
 
 - **Live HUD** podczas nagrania: prędkościomierz tempa (sylaby/s i słowa/min), pasek oddechu, przebieg fali,
   ostrzeżenia o szumie (SNR) i przesterowaniu.
+  W trybie czytania kolorowa ramka tekstu i przypięty nad nim status tempa pozwalają śledzić tempo bez odrywania wzroku od treści, także podczas jej przewijania.
 - **Raport sesji**: wynik 0–100 (tempo, artykulacja, płynność, intonacja), transkrypcja z kolorowymi oznaczeniami
   (za szybko / niewyraźnie / pominięte / wypełniacze), odsłuch każdego słowa, szczegóły głosek (GOP),
   oś czasu z pauzami, F0 i głośnością, „Top 3 do poprawy” z ćwiczeniami, „Powtórz to zdanie” z porównaniem przed/po.
-- **Tryby treningu**: czytanie własnego tekstu, Pacer Karaoke, Laboratorium dykcji (50 łamańców + pary minimalne),
-  rozmowa z botem (TTS + pytania pogłębiające), kalibracja profilu użytkownika.
+- **Tryby treningu**: czytanie własnego tekstu, Pacer Karaoke (15 gotowych tekstów dostępnych w obu trybach), Laboratorium dykcji (50 łamańców + pary minimalne),
+  opowiadanie historii (swobodna wypowiedź bez bota i syntezatora mowy), kalibracja profilu użytkownika.
+  W opowiadaniu historii pauzy nie przerywają nagrania — kończy je przycisk „Skończyłem”, po czym otwiera się raport.
 - **Pulpit**: trendy wyników i tempa, wyrazistość grup głosek, historia sesji.
+- **Motyw**: domyślnie zgodny z systemem; przełącznik słońce/księżyc w nagłówku i Ustawieniach pozwala wybrać jasny lub ciemny i zapamiętuje wybór lokalnie.
 
 ## Architektura
 
 | Warstwa | Technologia |
 |---|---|
-| UI | Vite, React 19, TypeScript, Tailwind v4 (komponenty w stylu shadcn/ui), react-router (HashRouter) |
+| UI | Vite, React 19, TypeScript, Tailwind v4 (komponenty w stylu shadcn/ui), react-router (BrowserRouter) |
 | Stan / dane | Zustand (ustawienia w `localStorage`), Dexie / IndexedDB (sesje i nagrania) |
 | Audio | `getUserMedia` + AudioWorklet (16 kHz), Silero VAD (onnxruntime-web), MediaRecorder |
 | Modele | Transformers.js v3 w Web Workerze: Whisper (transkrypcja) + wav2vec2-PL CTC (wyrównanie i GOP) |
@@ -53,6 +56,12 @@ lub użyć `coi-serviceworker`. Mikrofon działa tylko przez HTTPS lub na `local
 
 Zalecana przeglądarka: Chrome / Edge (WebGPU dla wariantu Pro). Firefox i Safari działają z wariantami Lite/Standard na WASM.
 
+Aplikacja używa adresów bez `#` (np. `/reading`, `/session/<id>`) i jest serwowana z głównego katalogu domeny.
+Zakładka „Opowiadanie historii” ma adres `/storytelling`.
+Na hostingu należy skonfigurować fallback SPA: żądania podstron, które nie wskazują istniejących plików,
+muszą zwracać `index.html`, aby bezpośrednie linki i odświeżanie działały poprawnie.
+Vite (`dev` i `preview`) obsługuje to automatycznie; sam GitHub Pages nie zapewnia takiego fallbacku.
+
 ## Prywatność
 
 - Analiza mowy odbywa się lokalnie (Web Worker + WASM/WebGPU).
@@ -62,7 +71,7 @@ Zalecana przeglądarka: Chrome / Edge (WebGPU dla wariantu Pro). Firefox i Safar
 
 ## Debug i strojenie progów
 
-- Dodaj `?debug=1` do adresu raportu (np. `#/session/<id>?debug=1`), aby zobaczyć surowe dane, wyeksportować sesję
+- Dodaj `?debug=1` do adresu raportu (np. `/session/<id>?debug=1`), aby zobaczyć surowe dane, wyeksportować sesję
   (JSON) oraz **wejście silnika** dla korpusu (przycisk „Korpus”).
 - `scripts/evaluate-corpus.ts` – ewaluacja na korpusie z adnotacjami (precyzja/czułość flag, błąd tempa, F1 pauz)
   i przeszukiwanie progów z `src/engine/thresholds.ts`:
@@ -90,4 +99,4 @@ src/components/     HUD, raport, komponenty UI
 src/data/           łamańce, pary minimalne, tekst kalibracyjny, scenariusze bota (treści autorskie)
 ```
 
-Wszystkie teksty ćwiczeń są autorskie, przygotowane dla ClearVoice AI.
+Wszystkie teksty ćwiczeń są autorskie, przygotowane dla CzystaMowa.

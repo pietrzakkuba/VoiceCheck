@@ -28,7 +28,7 @@ export interface DictionExercise {
 const ex = (category: DictionCategory, items: [1 | 2 | 3, string][]): DictionExercise[] =>
   items.map(([level, text], i) => ({ id: `${category}-${i + 1}`, category, level, text }));
 
-/** 50 tongue twisters (8.5) – original texts written for ClearVoice AI. */
+/** 50 tongue twisters (8.5) – original texts written for CzystaMowa. */
 export const EXERCISES: DictionExercise[] = [
   ...ex('szumiace', [
     [1, 'Szary szczur szuka szyszek w szufladzie szafy.'],
@@ -118,5 +118,65 @@ export const READING_TEXTS: ReadingText[] = [
     id: 'gory',
     title: 'Wędrówka w górach',
     text: 'Szlak prowadził stromo w górę, przez gęsty, świerkowy las. Po dwóch godzinach marszu drzewa zaczęły rzednąć, a przed nami otworzył się widok na szeroką dolinę. W oddali błyszczało jezioro, nad którym krążył jastrząb. Usiedliśmy na kamieniu, wyjęliśmy kanapki i przez chwilę nikt nic nie mówił. Cisza w górach ma w sobie coś, czego nie da się opisać słowami.',
+  },
+  {
+    id: 'biblioteka',
+    title: 'Popołudnie w bibliotece',
+    text: 'W bibliotece pachniało papierem i drewnianymi regałami. Przy oknie siedział starszy pan, który uważnie przeglądał atlas ptaków. Bibliotekarka odłożyła książkę i zapytała, czego szukam. Odpowiedziałem, że czegoś na deszczowy wieczór, najlepiej z odrobiną tajemnicy. Uśmiechnęła się i wskazała dolną półkę. Wyszedłem z trzema powieściami, choć planowałem wypożyczyć tylko jedną. Deszcz wciąż padał, ale przestało mi to przeszkadzać.',
+  },
+  {
+    id: 'targ',
+    title: 'Na sobotnim targu',
+    text: 'Sobotni targ rozbrzmiewał rozmowami sprzedawców i szelestem papierowych toreb. Na straganach piętrzyły się gruszki, śliwki oraz pęczki świeżej pietruszki. Poprosiłam o kilogram jabłek i zapytałam, które najlepiej nadają się na szarlotkę. Sprzedawca podał mi niewielki owoc na spróbowanie. Był kwaśny, soczysty i pachniał jesienią. Do koszyka dołożyłam jeszcze chleb, słoik miodu oraz bukiet żółtych kwiatów.',
+  },
+  {
+    id: 'pociag',
+    title: 'Podróż pociągiem',
+    text: 'Pociąg ruszył punktualnie, a za szybą powoli znikały ostatnie budynki miasta. Naprzeciwko mnie dziewczynka liczyła mijane mosty. Jej brat twierdził, że tunele są znacznie ciekawsze, lecz po chwili oboje zasnęli. Otworzyłem notes i zapisałem kilka pomysłów na nadchodzący tydzień. Kiedy konduktor zapowiedział kolejną stację, zauważyłem, że od dawna po prostu patrzę na pola i odpoczywam.',
+  },
+  {
+    id: 'ogrod',
+    title: 'Mały ogród na balkonie',
+    text: 'Nie trzeba mieć dużej działki, żeby obserwować, jak rosną rośliny. Na naszym balkonie mieszczą się trzy skrzynki z ziołami i doniczka pomidorów. Każdego ranka sprawdzamy wilgotność ziemi, usuwamy suche liście i szukamy nowych pąków. Najwięcej cierpliwości wymaga czekanie na pierwsze owoce. Kiedy wreszcie dojrzewają, nawet zwykła kanapka z bazylią smakuje jak nagroda za wiele tygodni troski.',
+  },
+  {
+    id: 'muzeum',
+    title: 'Niezwykła wystawa',
+    text: 'Przewodniczka zatrzymała nas przed niewielkim zegarem zamkniętym w szklanej gablocie. Wyjaśniła, że jego mechanizm powstał w warsztacie miejscowego rzemieślnika. Każde koło zębate wykonano ręcznie, bez pomocy nowoczesnych maszyn. Ktoś zapytał, czy zegar nadal działa. W odpowiedzi usłyszeliśmy ciche tykanie. Nagle przedmiot, który wydawał się zwyczajny, stał się opowieścią o cierpliwości, precyzji i pomysłowości człowieka.',
+  },
+  {
+    id: 'przepis',
+    title: 'Przepis na spokojny wieczór',
+    text: 'Najpierw pokrój warzywa na niewielkie kawałki i rozgrzej oliwę w szerokim garnku. Dodaj cebulę, marchew oraz szczyptę soli. Mieszaj powoli, aż w kuchni pojawi się przyjemny zapach. Następnie wlej bulion i wsyp czerwoną soczewicę. Gdy zupa będzie się gotować, nakryj do stołu i odłóż telefon. Dobry posiłek nie wymaga pośpiechu, a wspólna kolacja może być najspokojniejszą częścią dnia.',
+  },
+  {
+    id: 'spotkanie',
+    title: 'Otwarcie spotkania zespołu',
+    text: 'Dziękuję wszystkim za przybycie. Dzisiejsze spotkanie poświęcimy trzem sprawom: postępom prac, zgłoszonym trudnościom i podziałowi kolejnych zadań. Zacznijmy od krótkiego podsumowania tego, co udało się zakończyć. Później każda osoba będzie mogła przedstawić swoje pytania. Zależy mi, żebyśmy wyszli stąd z jasnym planem, a nie tylko z dłuższą listą tematów. Na końcu ustalimy termin następnej rozmowy.',
+  },
+  {
+    id: 'zaproszenie',
+    title: 'Zaproszenie na sąsiedzki piknik',
+    text: 'Serdecznie zapraszamy mieszkańców na sąsiedzki piknik w parku przy rzece. Spotykamy się w sobotę, tuż po południu, obok drewnianej altany. W programie przewidzieliśmy wspólne gry, wymianę książek i krótki koncert lokalnego zespołu. Zabierzcie koce, wodę oraz dobry humor. Jeśli pogoda nie dopisze, przeniesiemy wydarzenie do pobliskiej świetlicy. To świetna okazja, żeby poznać osoby, które codziennie mijamy na klatce schodowej.',
+  },
+  {
+    id: 'wynalazek',
+    title: 'Pomysł, który ułatwia życie',
+    text: 'Najlepsze pomysły często zaczynają się od prostego pytania: dlaczego robimy to w tak skomplikowany sposób? Nasz zespół zauważył, że mieszkańcy tracą dużo czasu na szukanie wolnych rowerów miejskich. Przygotowaliśmy więc mapę pokazującą dostępne pojazdy i najbliższe stacje. Pierwsza wersja nie była idealna. Dopiero rozmowy z użytkownikami pomogły nam zrozumieć, które informacje naprawdę powinny znaleźć się na głównym ekranie.',
+  },
+  {
+    id: 'burza',
+    title: 'Tuż przed burzą',
+    text: 'Jeszcze przed chwilą ogród rozświetlało słońce, ale teraz nad dachami zbierały się ciężkie chmury. Wiatr poruszył zasłoną i zatrzasnął drzwi na taras. Czy zdążymy schować krzesła? Pobiegliśmy na zewnątrz, śmiejąc się i nawołując. Pierwsze krople spadły, gdy wnosiliśmy ostatnią poduszkę. Potem usiedliśmy przy oknie. Błysk, krótka cisza i głęboki grzmot oznajmiły, że burza jest już bardzo blisko.',
+  },
+  {
+    id: 'morze',
+    title: 'Wieczór nad morzem',
+    text: 'Pod wieczór plaża powoli pustoszała. Fale wyrzucały na piasek drobne muszle, a mewy krążyły nad drewnianym pomostem. Szliśmy wzdłuż brzegu, zostawiając za sobą ślady, które po chwili znikały pod wodą. Na horyzoncie przesuwał się niewielki statek. Nikt nie sprawdzał godziny ani nie proponował powrotu. Chcieliśmy zostać jeszcze chwilę i zobaczyć, jak ostatni pas światła gaśnie nad spokojnym morzem.',
+  },
+  {
+    id: 'warsztat',
+    title: 'W pracowni ceramiki',
+    text: 'Prowadzący warsztaty położył na stole kawałek gliny i poprosił, żebyśmy najpierw ogrzali go w dłoniach. Chciałam ulepić równą miskę, lecz jej brzeg ciągle opadał. Obok ktoś tworzył kubek z ogromnym uchem, a ktoś inny małego jeża. Z czasem przestaliśmy porównywać swoje prace. Liczyły się skupienie, dotyk materiału i radość z tego, że zwykła bryła powoli nabiera własnego kształtu.',
   },
 ];

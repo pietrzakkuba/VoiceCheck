@@ -70,7 +70,7 @@ export default function SessionReport() {
 
   const exportJson = () => {
     if (!session) return;
-    download(JSON.stringify(session, null, 2), `clearvoice-${session.id}.json`);
+    download(JSON.stringify(session, null, 2), `czystamowa-${session.id}.json`);
   };
 
   const exportCorpus = async () => {
@@ -79,7 +79,7 @@ export default function SessionReport() {
     setErr(null);
     try {
       const data = await exportAnalysisInput(session.id);
-      download(JSON.stringify(data), `clearvoice-input-${session.id}.json`);
+      download(JSON.stringify(data), `czystamowa-input-${session.id}.json`);
     } catch (e) {
       setErr((e as Error).message);
     } finally {

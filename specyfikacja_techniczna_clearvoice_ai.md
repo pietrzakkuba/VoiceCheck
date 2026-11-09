@@ -1,4 +1,4 @@
-# Specyfikacja Techniczna Aplikacji: Trener Dykcji i Tempa Mowy ("ClearVoice AI") — v2
+# Specyfikacja Techniczna Aplikacji: Trener Dykcji i Tempa Mowy ("CzystaMowa") — v2
 
 ## 0. Najważniejsze zmiany względem v1
 *   **Ocena dykcji:** zamiast porównywania dwóch modeli ASR (Chrome vs Whisper), które mierzyło głównie różnice między samymi modelami, wprowadzono **wymuszone wyrównanie akustyczne (CTC forced alignment) i miarę GOP (*Goodness of Pronunciation*)** na poziomie pojedynczych głosek.

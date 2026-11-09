@@ -1,23 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Settings as SettingsIcon, Volume2 } from 'lucide-react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { Label, NativeSelect, Slider, Switch, Alert } from '@/components/ui/primitives';
 import { useSettings, DEFAULT_SETTINGS } from '@/store/settings';
 import { clearAllData, getBaseline } from '@/store/db';
 import { initModels, useModelStore } from '@/workers/client';
 import { listMicrophones } from '@/audio/capture';
 import { liveCaptionsSupported } from '@/audio/liveCaptions';
-import { speak, usePolishVoices } from '@/lib/tts';
 import { SCORE_LABELS } from '@/lib/labels';
 import type { ScoreWeights } from '@/types';
 
 export default function Settings() {
   const s = useSettings();
   const model = useModelStore();
-  const voices = usePolishVoices();
   const baseline = useLiveQuery(() => getBaseline(), [], undefined);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -47,13 +46,9 @@ export default function Settings() {
 
       <Card>
         <CardHeader><CardTitle>Wygląd</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="flex items-center justify-between gap-4">
           <Label htmlFor="theme">Motyw</Label>
-          <NativeSelect id="theme" value={s.theme} onChange={(e) => s.set({ theme: e.target.value as typeof s.theme })} className="mt-1.5 max-w-xs">
-            <option value="system">Systemowy</option>
-            <option value="light">Jasny</option>
-            <option value="dark">Ciemny</option>
-          </NativeSelect>
+          <ThemeSwitch id="theme" />
         </CardContent>
       </Card>
 
@@ -122,26 +117,6 @@ export default function Settings() {
             </div>
             <Switch id="captions" checked={s.liveCaptions} disabled={!liveCaptionsSupported()} onCheckedChange={(v) => s.set({ liveCaptions: v })} />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Głos bota</CardTitle>
-          <CardDescription>Syntezator mowy używany w trybie rozmowy.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-2">
-          {voices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Brak polskiego głosu w systemie – zainstaluj go w ustawieniach systemu operacyjnego.</p>
-          ) : (
-            <>
-              <NativeSelect value={s.selectedVoiceURI ?? ''} onChange={(e) => s.set({ selectedVoiceURI: e.target.value || null })} className="max-w-sm" aria-label="Głos">
-                <option value="">Automatyczny</option>
-                {voices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
-              </NativeSelect>
-              <Button variant="outline" onClick={() => void speak('Dzień dobry, opowiedz mi o sobie.', s.selectedVoiceURI)}><Volume2 className="size-4" /> Test</Button>
-            </>
-          )}
         </CardContent>
       </Card>
 

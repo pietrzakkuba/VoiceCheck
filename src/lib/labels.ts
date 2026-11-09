@@ -2,7 +2,7 @@ import type { TrainingMode } from '@/types';
 
 export const MODE_LABELS: Record<TrainingMode, string> = {
   calibration: 'Kalibracja',
-  bot_conversation: 'Rozmowa z botem',
+  bot_conversation: 'Opowiadanie historii',
   pacer_karaoke: 'Pacer Karaoke',
   free_reading: 'Czytanie tekstu',
   tongue_twisters: 'Laboratorium dykcji',

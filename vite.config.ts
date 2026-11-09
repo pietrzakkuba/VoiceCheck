@@ -11,7 +11,7 @@ const isolationHeaders = {
 };
 
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
@@ -25,6 +25,6 @@ export default defineConfig({
   build: { target: 'es2022', chunkSizeWarningLimit: 4000 },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
   },
 });

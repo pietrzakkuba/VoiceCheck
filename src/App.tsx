@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { NavLink, Route, Routes } from 'react-router';
-import { AudioLines, BookOpenText, Gauge, LayoutDashboard, Loader2, MessagesSquare, Settings as SettingsIcon, SpellCheck } from 'lucide-react';
+import { AudioLines, BookOpen, BookOpenText, Gauge, LayoutDashboard, Loader2, Settings as SettingsIcon, SpellCheck } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/overlay';
 import { ModelStatus } from '@/components/ModelStatus';
+import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useApplyTheme } from '@/lib/theme';
 import { initModels } from '@/workers/client';
 import { preloadVad } from '@/audio/capture';
@@ -13,7 +14,7 @@ const Calibration = lazy(() => import('@/pages/Calibration'));
 const TrainReading = lazy(() => import('@/pages/TrainReading'));
 const TrainPacer = lazy(() => import('@/pages/TrainPacer'));
 const TrainDiction = lazy(() => import('@/pages/TrainDiction'));
-const TrainBot = lazy(() => import('@/pages/TrainBot'));
+const TrainStory = lazy(() => import('@/pages/TrainStory'));
 const SessionReport = lazy(() => import('@/pages/SessionReport'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
@@ -22,7 +23,7 @@ const NAV = [
   { to: '/reading', label: 'Czytanie', icon: BookOpenText },
   { to: '/pacer', label: 'Pacer', icon: Gauge },
   { to: '/diction', label: 'Dykcja', icon: SpellCheck },
-  { to: '/bot', label: 'Rozmowa', icon: MessagesSquare },
+  { to: '/storytelling', label: 'Opowiadanie historii', icon: BookOpen },
   { to: '/settings', label: 'Ustawienia', icon: SettingsIcon },
 ];
 
@@ -37,12 +38,12 @@ export default function App() {
     <TooltipProvider>
       <div className="min-h-screen flex flex-col">
         <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-4">
+          <div className="mx-auto max-w-6xl px-4 min-h-14 py-2 flex flex-wrap items-center gap-4">
             <NavLink to="/" className="flex items-center gap-2 font-semibold shrink-0">
               <AudioLines className="size-5 text-primary" aria-hidden />
-              <span>ClearVoice<span className="text-primary"> AI</span></span>
+              <span>Czysta<span className="text-primary">Mowa</span></span>
             </NavLink>
-            <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Główna nawigacja">
+            <nav className="order-last w-full min-w-0 flex items-center gap-1 overflow-x-auto sm:order-none sm:w-auto sm:flex-1" aria-label="Główna nawigacja">
               {NAV.map(({ to, label, icon: Icon, end }) => (
                 <NavLink
                   key={to}
@@ -60,7 +61,8 @@ export default function App() {
                 </NavLink>
               ))}
             </nav>
-            <div className="ml-auto shrink-0">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              <ThemeSwitch />
               <ModelStatus />
             </div>
           </div>
@@ -80,7 +82,7 @@ export default function App() {
               <Route path="/reading" element={<TrainReading />} />
               <Route path="/pacer" element={<TrainPacer />} />
               <Route path="/diction" element={<TrainDiction />} />
-              <Route path="/bot" element={<TrainBot />} />
+              <Route path="/storytelling" element={<TrainStory />} />
               <Route path="/session/:id" element={<SessionReport />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Dashboard />} />
@@ -88,7 +90,7 @@ export default function App() {
           </Suspense>
         </main>
         <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-          ClearVoice AI · cała analiza odbywa się lokalnie w przeglądarce – nagrania nie opuszczają urządzenia.
+          CzystaMowa · cała analiza odbywa się lokalnie w przeglądarce – nagrania nie opuszczają urządzenia.
         </footer>
       </div>
     </TooltipProvider>

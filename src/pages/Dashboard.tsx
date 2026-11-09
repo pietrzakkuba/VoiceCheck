@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bot, BookOpenText, Crosshair, Gauge, Mic2, X } from 'lucide-react';
+import { BookOpen, BookOpenText, Crosshair, Gauge, Mic2, X } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts';
@@ -20,7 +20,7 @@ const MODES = [
   { to: '/reading', icon: BookOpenText, title: 'Czytanie tekstu', desc: 'Własny tekst lub prezentacja' },
   { to: '/pacer', icon: Gauge, title: 'Pacer Karaoke', desc: 'Czytanie w zadanym tempie' },
   { to: '/diction', icon: Mic2, title: 'Laboratorium dykcji', desc: 'Łamańce i pary minimalne' },
-  { to: '/bot', icon: Bot, title: 'Rozmowa z botem', desc: 'Swobodne odpowiedzi na pytania' },
+  { to: '/storytelling', icon: BookOpen, title: 'Opowiadanie historii', desc: 'Własna historia bez pytań i głosu bota' },
 ];
 
 const shortDate = (t: number) => new Date(t).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });

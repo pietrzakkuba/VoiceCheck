@@ -79,7 +79,7 @@ export class ChunkTranscriber {
       return;
     }
     this.queue = this.queue.then(() => this.process(chunk)).catch((e) => {
-      console.warn('[ClearVoice] chunk analysis failed', e);
+      console.warn('[CzystaMowa] chunk analysis failed', e);
       this.missed = true;
     });
   }
@@ -95,7 +95,7 @@ export class ChunkTranscriber {
       try {
         for (const c of chunks) await this.process(c);
       } catch (e) {
-        console.warn('[ClearVoice] analysis failed', e);
+        console.warn('[CzystaMowa] analysis failed', e);
         return false;
       }
     }
@@ -401,7 +401,7 @@ export function reanalyzePending(): Promise<void> {
       try {
         await reanalyzeSession(s.id);
       } catch (e) {
-        console.warn('[ClearVoice] re-analysis failed', s.id, e);
+        console.warn('[CzystaMowa] re-analysis failed', s.id, e);
       }
       useReanalysis.setState((st) => ({ done: st.done + 1 }));
     }

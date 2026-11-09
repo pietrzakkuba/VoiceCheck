@@ -2,7 +2,7 @@
 """
 One-off export of the Polish wav2vec2 CTC model to ONNX + dynamic q8 quantisation (spec 5.4).
 
-ClearVoice AI uses a ready-made ONNX export by default (XDcobra/wav2vec2-large-xlsr-53-polish-ONNX);
+CzystaMowa uses a ready-made ONNX export by default (XDcobra/wav2vec2-large-xlsr-53-polish-ONNX);
 run this script only if you want to publish your own copy (e.g. a different base model).
 
 Requirements:

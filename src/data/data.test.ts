@@ -31,8 +31,19 @@ describe('content', () => {
     for (const c of ['szumiace', 'syczace', 'ciszace', 'nosowe', 'sonorne', 'samogloski']) expect(counts[c] ?? 0).toBeGreaterThanOrEqual(5);
   });
 
-  it('reading texts normalize cleanly', () => {
-    for (const t of READING_TEXTS) expect(normalizeText(t.text).length).toBeGreaterThan(40);
+  it('has 15 unique reading texts that normalize cleanly and fit both reading modes', () => {
+    expect(READING_TEXTS).toHaveLength(15);
+    expect(new Set(READING_TEXTS.map((t) => t.id)).size).toBe(READING_TEXTS.length);
+    expect(new Set(READING_TEXTS.map((t) => t.title)).size).toBe(READING_TEXTS.length);
+    expect(new Set(READING_TEXTS.map((t) => t.text)).size).toBe(READING_TEXTS.length);
+    for (const t of READING_TEXTS) {
+      expect(t.id.trim().length).toBeGreaterThan(0);
+      expect(t.title.trim().length).toBeGreaterThan(0);
+      expect(t.text.length).toBeLessThanOrEqual(3000);
+      const tokens = normalizeText(t.text);
+      expect(tokens.length).toBeGreaterThan(40);
+      expect(tokens.every((token) => !token.unscorable)).toBe(true);
+    }
   });
 
   it('bot asks follow-ups on keywords, then moves on', () => {
