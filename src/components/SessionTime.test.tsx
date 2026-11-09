@@ -11,24 +11,28 @@ describe('session time', () => {
   });
 
   it.each([
-    [0, 'Pozostało 5:00'],
-    [299.9, 'Pozostało 0:01'],
-    [300, 'Pozostało 0:00'],
-    [301, 'Przekroczono o 0:01'],
-    [365, 'Przekroczono o 1:05'],
-  ])('compares %s seconds with the recorded limit', (seconds, message) => {
-    const html = renderToStaticMarkup(<SessionTime seconds={seconds} targetSeconds={300} />);
-    expect(html).toContain(message);
-    expect(html).toContain('/ 5:00');
-    expect(html.includes('text-bad')).toBe(seconds > 300);
+    [-1, '0:00'],
+    [0, '0:00'],
+    [299.9, '4:59'],
+    [300, '5:00'],
+    [301, '5:01'],
+    [365, '6:05'],
+  ])('shows %s seconds as elapsed time without warnings', (seconds, elapsed) => {
+    const html = renderToStaticMarkup(<SessionTime seconds={seconds} />);
+    expect(html).toContain(elapsed);
+    expect(html).not.toContain('Pozostało');
+    expect(html).not.toContain('Przekroczono');
+    expect(html).not.toContain('text-bad');
   });
 
   it.each([299, 301])('keeps the compact timer on a fixed-height row at %s seconds', (seconds) => {
-    const html = renderToStaticMarkup(<SessionTime seconds={seconds} targetSeconds={300} compact />);
+    const html = renderToStaticMarkup(<SessionTime seconds={seconds} compact />);
     expect(html).toContain('flex h-8 items-center');
     expect(html).toContain('shrink-0 whitespace-nowrap');
     expect(html).toContain('role="timer" aria-label="Czas sesji"');
     expect(html).toContain('class="sr-only">Łącznie z pauzami');
-    expect(html).toContain(seconds > 300 ? 'Przekroczono o 0:01' : 'Pozostało 0:01');
+    expect(html).toContain(seconds > 300 ? '5:01' : '4:59');
+    expect(html).not.toContain('Pozostało');
+    expect(html).not.toContain('Przekroczono');
   });
 });

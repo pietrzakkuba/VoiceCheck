@@ -43,7 +43,7 @@ export default function PresentationHistory() {
           <h1 className="text-2xl font-semibold flex items-center gap-2"><History className="size-6 shrink-0 text-primary" aria-hidden /> Historia prezentacji</h1>
           <p className="text-muted-foreground mt-1 break-words">{presentation.title}</p>
         </div>
-        <Button asChild><Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Ćwicz</Link></Button>
+        <Button asChild><Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Prezentuj</Link></Button>
       </div>
       <Card>
         <CardHeader>
@@ -52,9 +52,9 @@ export default function PresentationHistory() {
         </CardHeader>
         <CardContent>
           {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Brak prób tej prezentacji. Kliknij „Ćwicz”, aby nagrać pierwszą próbę.</p>
+            <p className="text-sm text-muted-foreground">Brak sesji tej prezentacji. Kliknij „Prezentuj”, aby nagrać pierwszą sesję.</p>
           ) : (
-            <SessionList sessions={sessions} titles={new Map([[presentation.id, presentation.title]])} />
+            <SessionList key={presentation.id} sessions={sessions} titles={new Map([[presentation.id, presentation.title]])} variant="rehearsals" />
           )}
         </CardContent>
       </Card>

@@ -22,17 +22,3 @@ export function formatDuration(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
-
-/** Parses minutes typed by the user ("5", "2,5", "2.5"); empty input = no limit. */
-export function parseMinutes(input: string): number | undefined | null {
-  const v = input.trim().replace(',', '.');
-  if (v === '') return undefined;
-  const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0 || n > 600) return null;
-  return Math.round(n * 60);
-}
-
-export function minutesInput(seconds?: number): string {
-  if (!seconds) return '';
-  return String(+(seconds / 60).toFixed(2)).replace('.', ',');
-}

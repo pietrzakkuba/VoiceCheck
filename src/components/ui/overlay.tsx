@@ -39,14 +39,14 @@ export function TooltipProvider(props: React.ComponentProps<typeof Tt.Provider>)
   return <Tt.Provider delayDuration={200} {...props} />;
 }
 
-export function Tooltip({ content, children }: { content: React.ReactNode; children: React.ReactNode }) {
+export function Tooltip({ content, children, className }: { content: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <Tt.Root>
       <Tt.Trigger asChild>{children}</Tt.Trigger>
       <Tt.Portal>
         <Tt.Content
           sideOffset={4}
-          className="bg-foreground text-background z-50 max-w-xs rounded-md px-3 py-1.5 text-xs animate-in fade-in-0"
+          className={cn('bg-foreground text-background z-50 max-w-xs rounded-md px-3 py-1.5 text-xs animate-in fade-in-0', className)}
         >
           {content}
         </Tt.Content>

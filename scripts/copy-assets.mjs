@@ -1,4 +1,4 @@
-// Copies runtime assets (Silero VAD model, ONNX Runtime WASM, COI service worker) into public/.
+// Copies runtime assets (Silero VAD model, ONNX Runtime WASM) into public/.
 import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,5 +25,4 @@ if (existsSync(ortDist)) {
   }
 }
 
-copy(join(nm, 'coi-serviceworker', 'coi-serviceworker.min.js'), join(root, 'public', 'coi-serviceworker.min.js'));
 console.log('[copy-assets] done');

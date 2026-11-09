@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Crosshair, History, Loader2, X } from 'lucide-react';
+import { BookOpenText, Crosshair, History, Loader2, Mic, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionList } from '@/components/SessionList';
 import { PresentationList } from '@/components/PresentationList';
@@ -38,17 +38,17 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <h1 className="sr-only">VoiceCheck</h1>
+
+      <section className="rounded-xl border bg-card p-4 flex flex-wrap items-center justify-between gap-3" aria-labelledby="free-speech-heading">
         <div>
-          <h1 className="text-2xl font-semibold">Pulpit</h1>
-          <p className="text-sm text-muted-foreground">
-            Mierz tempo mówienia i pamiętaj o oddechu. Wszystko działa lokalnie – nagrania nie opuszczają Twojego komputera.
+          <h2 id="free-speech-heading" className="text-xl font-semibold flex items-center gap-2"><BookOpenText className="size-6 text-primary" aria-hidden /> Swobodne mówienie</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Czytasz tekst spoza aplikacji (kartka, inny ekran) lub mówisz z pamięci? Mierzę tylko tempo i oddech.
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link to="/calibration"><Crosshair className="size-4" aria-hidden /> Kalibracja</Link>
-        </Button>
-      </div>
+        <Button asChild><Link to="/speaking"><Mic className="size-4" aria-hidden /> Rozpocznij</Link></Button>
+      </section>
 
       <PresentationList />
 
@@ -72,10 +72,10 @@ export default function Dashboard() {
         </div>
         <div className="rounded-xl border bg-card p-2">
           {sessions.length === 0 ? (
-            <p className="p-2 text-sm text-muted-foreground">Brak sesji. Dodaj prezentację i nagraj pierwszą próbę.</p>
+            <p className="p-2 text-sm text-muted-foreground">Brak sesji. Dodaj prezentację lub rozpocznij swobodne mówienie, aby nagrać pierwszą próbę.</p>
           ) : (
-            <div className="max-h-60 overflow-y-auto px-2" tabIndex={0} aria-label="Lista sesji">
-              <SessionList sessions={sessions.slice(0, 50)} titles={titles} />
+            <div className="px-2">
+              <SessionList sessions={sessions} titles={titles} />
             </div>
           )}
         </div>

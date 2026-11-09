@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Settings as SettingsIcon, Volume2 } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Volume2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
+import { PwaInstall } from '@/components/PwaInstall';
 import { Label, NativeSelect, Slider, Switch, Alert } from '@/components/ui/primitives';
 import { useSettings } from '@/store/settings';
 import { clearAllData, getBaseline } from '@/store/db';
@@ -22,7 +24,6 @@ export default function Settings() {
   }, []);
 
   const clear = async () => {
-    if (!confirm('Usunąć wszystkie prezentacje, sesje, nagrania i kalibrację? Tej operacji nie można cofnąć.')) return;
     await clearAllData();
     s.set({ liveSyllableCorrection: 1, syllablesPerWord: 2.3 });
     setMsg('Dane zostały usunięte.');
@@ -34,9 +35,16 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <h1 className="text-2xl font-semibold flex items-center gap-2"><SettingsIcon className="size-6 text-primary" aria-hidden /> Ustawienia</h1>
+    <div className="space-y-5">
+      <div>
+        <Button asChild variant="ghost" size="sm" className="-ml-3 h-9 text-muted-foreground">
+          <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
+        </Button>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><SettingsIcon className="size-6 text-primary" aria-hidden /> Ustawienia</h1>
+      </div>
       {msg && <Alert variant="ok">{msg}</Alert>}
+
+      <PwaInstall />
 
       <Card>
         <CardHeader><CardTitle>Wygląd</CardTitle></CardHeader>
@@ -105,8 +113,25 @@ export default function Settings() {
       <Card>
         <CardHeader><CardTitle>Dane</CardTitle><CardDescription>Wszystkie dane są przechowywane wyłącznie lokalnie (IndexedDB).</CardDescription></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="destructive" onClick={() => void clear()}>Usuń wszystkie dane</Button>
-          <Button variant="outline" onClick={() => { if (confirm('Przywrócić ustawienia domyślne?')) s.reset(); }}>Przywróć ustawienia domyślne</Button>
+          <ConfirmDialog
+            title="Usunąć wszystkie dane?"
+            description="Wszystkie prezentacje, sesje, nagrania i kalibracja zostaną usunięte z tego urządzenia. Tej operacji nie można cofnąć."
+            confirmLabel="Usuń wszystkie dane"
+            errorMessage="Nie udało się usunąć danych. Spróbuj ponownie."
+            destructive
+            onConfirm={clear}
+          >
+            <Button variant="destructive">Usuń wszystkie dane</Button>
+          </ConfirmDialog>
+          <ConfirmDialog
+            title="Przywrócić ustawienia domyślne?"
+            description="Ustawienia aplikacji wrócą do wartości domyślnych. Prezentacje, sesje, nagrania, kalibracja i wybrany mikrofon zostaną zachowane."
+            confirmLabel="Przywróć ustawienia"
+            errorMessage="Nie udało się przywrócić ustawień. Spróbuj ponownie."
+            onConfirm={s.reset}
+          >
+            <Button variant="outline">Przywróć ustawienia domyślne</Button>
+          </ConfirmDialog>
         </CardContent>
       </Card>
     </div>

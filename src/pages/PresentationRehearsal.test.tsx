@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { LiveStats } from '@/audio/liveAnalyzer';
 import type { SessionPhase } from '@/hooks/useTrainingSession';
@@ -6,8 +9,10 @@ import type { Presentation } from '@/types';
 import type { SettingsState } from '@/store/settings';
 import { DEFAULT_SETTINGS } from '@/store/settings';
 import PresentationRehearsal from './PresentationRehearsal';
+import { documentFromText } from '@/lib/presentationDocument';
+import { formatDuration, textStats } from '@/lib/presentation';
 
-const PRESENTATION: Presentation = {
+const PRESENTATION: Presentation & { targetDurationSeconds: number } = {
   id: 'p1',
   title: 'Wyniki kwartalne',
   text: 'Dzień dobry państwu. Dziś opowiem o wynikach naszego zespołu w ostatnim kwartale.',
@@ -102,6 +107,14 @@ function liveStats(rate: number | null, calibrating = false): LiveStats {
 }
 
 describe('presentation rehearsal', () => {
+  let root: Root | undefined;
+
+  afterEach(async () => {
+    if (root) await act(async () => root?.unmount());
+    root = undefined;
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     mocks.phase = 'idle';
     mocks.stats = null;
@@ -117,11 +130,13 @@ describe('presentation rehearsal', () => {
     });
   });
 
-  it('shows the presentation text and limit before recording', () => {
+  it('shows the presentation text and estimated reading time without the legacy limit before recording', () => {
     const html = renderToStaticMarkup(<PresentationRehearsal />);
     expect(html).toContain('Wyniki kwartalne');
     expect(html).toContain('Dziś opowiem o wynikach');
-    expect(html).toContain('limit 5:00');
+    const estimated = textStats(PRESENTATION.text, DEFAULT_SETTINGS.targetArticulationRate).estimatedSeconds;
+    expect(html).toContain(`Szacowany czas czytania: ok. ${formatDuration(estimated)}`);
+    expect(html).not.toContain('limit 5:00');
     expect(html).toContain('href="/presentations/p1"');
     expect(html).not.toContain('<textarea');
     expect(html).not.toContain('Tempo czytania');
@@ -131,7 +146,71 @@ describe('presentation rehearsal', () => {
   it('records the session as a rehearsal of this presentation', () => {
     renderToStaticMarkup(<PresentationRehearsal />);
     expect(mocks.start).toHaveBeenCalledWith({
-      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1', targetDurationSeconds: 300,
+      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1',
+    });
+  });
+
+  async function renderCopyButton() {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    const host = document.createElement('div');
+    root = createRoot(host);
+    await act(async () => root!.render(<PresentationRehearsal />));
+    const button = Array.from(host.querySelectorAll('button')).find((item) => item.textContent?.includes('Kopiuj tekst'));
+    if (!button) throw new Error('Missing copy button');
+    expect(button.parentElement?.querySelector('a')?.textContent).toContain('Edytuj');
+    return { host, button };
+  }
+
+  it('copies the complete plain text from the formatted document and confirms success', async () => {
+    const text = 'Nagłówek\n\nPierwszy akapit.\nDrugi wiersz.';
+    mocks.presentation = { ...PRESENTATION, text: 'Nieaktualny tekst', document: documentFromText(text) };
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    const { host, button } = await renderCopyButton();
+    await act(async () => button.click());
+    expect(writeText).toHaveBeenCalledWith(text);
+    expect(host.querySelector('[role="status"]')?.textContent).toBe('Skopiowano tekst.');
+  });
+
+  it('shows a clipboard error and allows retrying', async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('Permission denied')).mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    const { host, button } = await renderCopyButton();
+    await act(async () => button.click());
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Nie udało się skopiować tekstu.');
+    expect(host.textContent).not.toContain('Skopiowano tekst.');
+    await act(async () => button.click());
+    expect(writeText).toHaveBeenLastCalledWith(PRESENTATION.text);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(host.textContent).toContain('Skopiowano tekst.');
+  });
+
+  it('reports an unavailable clipboard instead of claiming success', async () => {
+    vi.stubGlobal('navigator', {});
+    const { host, button } = await renderCopyButton();
+    await act(async () => button.click());
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Nie udało się skopiować tekstu.');
+    expect(host.textContent).not.toContain('Skopiowano tekst.');
+  });
+
+  it.each(['idle', 'starting', 'recording', 'processing'] as const)('preserves rich formatting during %s and records only plain text', (phase) => {
+    mocks.phase = phase;
+    const document = documentFromText('');
+    document.content.content = [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Wstęp' }] },
+      { type: 'orderedList', content: [
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Ważne', marks: [{ type: 'bold' }] }] }] },
+      ] },
+    ];
+    mocks.presentation = { ...PRESENTATION, text: 'Wstęp\nWażne', document };
+    const html = renderToStaticMarkup(<PresentationRehearsal />);
+    expect(html).toContain('<h2>');
+    expect(html).toContain('<ol>');
+    expect(html).toContain('<li><p><strong>');
+    expect(html).not.toContain('Formatowanie tekstu');
+    expect(html).not.toContain('contenteditable');
+    expect(mocks.start).toHaveBeenCalledWith({
+      mode: 'presentation', targetText: 'Wstęp\nWażne', presentationId: 'p1',
     });
   });
 
@@ -190,13 +269,17 @@ describe('presentation rehearsal', () => {
     expect(html).not.toContain('Nagrywanie');
   });
 
-  it('shows elapsed and remaining time next to the text', () => {
+  it('shows elapsed time and the reading estimate without a countdown next to the text', () => {
     mocks.phase = 'recording';
     mocks.stats = liveStats(5);
     const html = renderToStaticMarkup(<PresentationRehearsal />);
     expect(html).toContain('role="timer"');
     expect(html).toContain('0:05');
-    expect(html).toContain('Pozostało 4:55');
+    const estimated = textStats(PRESENTATION.text, DEFAULT_SETTINGS.targetArticulationRate).estimatedSeconds;
+    expect(html).toContain(`Szacowany czas czytania: ok. ${formatDuration(estimated)}`);
+    expect(html).not.toContain('Pozostało');
+    expect(html).not.toContain('Przekroczono');
+    expect(html).not.toContain('/ 5:00');
   });
 
   it.each([
@@ -278,7 +361,7 @@ describe('presentation rehearsal', () => {
     mocks.presentation = { ...PRESENTATION, text: 'Pierwszy wiersz.\nDrugi wiersz.\n\nNowy akapit.\r\n  1 000 - (koniec).' };
     const html = renderToStaticMarkup(<PresentationRehearsal />);
     const paragraph = html.match(/<p class="[^"]*whitespace-pre-wrap">([\s\S]*?)<\/p>/)?.[1];
-    expect(paragraph?.replace(/<\/?span>/g, '')).toBe(mocks.presentation.text);
+    expect(paragraph?.replace(/<\/?span\b[^>]*>/g, '')).toBe(mocks.presentation.text);
   });
 
   it.each([

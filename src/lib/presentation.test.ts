@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, minutesInput, parseMinutes, textStats } from './presentation';
+import { formatDuration, textStats } from './presentation';
 
 describe('presentation helpers', () => {
   it('counts words and estimates speaking time at the target rate', () => {
@@ -16,19 +16,10 @@ describe('presentation helpers', () => {
     expect(formatDuration(600)).toBe('10:00');
   });
 
-  it('parses minutes with comma or dot and rejects invalid values', () => {
-    expect(parseMinutes('')).toBeUndefined();
-    expect(parseMinutes('5')).toBe(300);
-    expect(parseMinutes('2,5')).toBe(150);
-    expect(parseMinutes('2.5')).toBe(150);
-    expect(parseMinutes('0')).toBeNull();
-    expect(parseMinutes('abc')).toBeNull();
-    expect(parseMinutes('-1')).toBeNull();
-  });
-
-  it('round-trips minutes for the editor input', () => {
-    expect(minutesInput(undefined)).toBe('');
-    expect(minutesInput(150)).toBe('2,5');
-    expect(parseMinutes(minutesInput(150))).toBe(150);
+  it('updates the estimate with the text length and target pace', () => {
+    const text = 'Dzień dobry państwu. '.repeat(20);
+    const stats = textStats(text, [4, 6]);
+    expect(textStats(text.repeat(2), [4, 6]).estimatedSeconds).toBe(Math.round(stats.syllables * 2 / 5));
+    expect(textStats(text, [2, 3]).estimatedSeconds).toBe(Math.round(stats.syllables / 2.5));
   });
 });

@@ -1,6 +1,8 @@
+import type { JSONContent } from '@tiptap/core';
+
 // Data schema: speech tempo and breathing only.
 
-/** 'reading' and 'free_speech' are legacy modes kept only for sessions recorded before the presentation library. */
+/** 'free_speech' = reading a text not stored in the app (pace and breathing only). 'reading' is a legacy mode kept only for sessions recorded before the presentation library. */
 export type TrainingMode = 'calibration' | 'presentation' | 'reading' | 'free_speech';
 
 export interface SpeechSegment {
@@ -89,8 +91,6 @@ export interface TrainingSession {
   targetText?: string;
   /** Presentation this session was a rehearsal of. */
   presentationId?: string;
-  /** Presentation time limit at the moment recording started. */
-  targetDurationSeconds?: number;
   deviceLabel: string;
   durationSeconds: number;
   audioKey: string;
@@ -105,13 +105,18 @@ export interface TrainingSession {
   warnings: string[];
 }
 
+export interface PresentationDocument {
+  version: 1;
+  content: JSONContent;
+}
+
 /** A text the user prepares to present and rehearses repeatedly. */
 export interface Presentation {
   id: string;
   title: string;
   text: string;
-  /** Planned speaking time; undefined = no time limit. */
-  targetDurationSeconds?: number;
+  /** Optional for presentations saved before rich-text editing. */
+  document?: PresentationDocument;
   createdAt: number;
   updatedAt: number;
 }

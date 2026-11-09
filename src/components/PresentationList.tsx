@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Clock, History, Mic, Pencil, Plus, Presentation as PresentationIcon } from 'lucide-react';
+import { History, Mic, Pencil, Plus, Presentation as PresentationIcon } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { listPresentations } from '@/store/db';
@@ -17,7 +17,7 @@ export function PresentationList() {
         <div>
           <h2 id="presentations-heading" className="text-xl font-semibold flex items-center gap-2"><PresentationIcon className="size-6 text-primary" aria-hidden /> Prezentacje</h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Zapisz tekst, który chcesz wygłosić, ustal czas wystąpienia i ćwicz go na głos z podglądem tempa i oddechu.
+            Zapisz tekst, sprawdź szacowany czas czytania i prezentuj z podglądem tempa i oddechu — podczas próby lub wystąpienia.
           </p>
         </div>
         <Button asChild><Link to="/presentations/new"><Plus className="size-4" aria-hidden /> Nowa prezentacja</Link></Button>
@@ -27,14 +27,13 @@ export function PresentationList() {
         <Card>
           <CardHeader>
             <CardTitle>Brak prezentacji</CardTitle>
-            <CardDescription>Dodaj pierwszą prezentację – wklej jej tekst i ustaw czas wystąpienia.</CardDescription>
+            <CardDescription>Dodaj pierwszą prezentację – wklej jej tekst, a aplikacja oszacuje czas czytania.</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {items.map((p) => {
             const st = textStats(p.text, target);
-            const over = p.targetDurationSeconds !== undefined && st.estimatedSeconds > p.targetDurationSeconds;
             return (
               <li key={p.id} className="min-w-0">
                 <div className="flex h-full flex-col gap-2 rounded-xl border bg-card p-4">
@@ -42,17 +41,14 @@ export function PresentationList() {
                   <p className="text-sm text-muted-foreground line-clamp-2 wrap-anywhere">{p.text}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span>{st.words} słów</span>
-                    <span className={over ? 'text-warn' : undefined} title="Szacowany czas w Twoim tempie docelowym">
-                      ok. {formatDuration(st.estimatedSeconds)}
+                    <span title="W Twoim tempie docelowym, bez pauz">
+                      Szacowany czas czytania: ok. {formatDuration(st.estimatedSeconds)}
                     </span>
-                    {p.targetDurationSeconds !== undefined && (
-                      <span className="flex items-center gap-1"><Clock className="size-3" aria-hidden /> limit {formatDuration(p.targetDurationSeconds)}</span>
-                    )}
                     <span className="ml-auto">{new Date(p.updatedAt).toLocaleDateString('pl-PL')}</span>
                   </div>
                   <div className="mt-auto flex flex-wrap gap-2 pt-1">
                     <Button size="sm" asChild>
-                      <Link to={`/presentations/${p.id}/rehearse`}><Mic className="size-4" aria-hidden /> Ćwicz</Link>
+                      <Link to={`/presentations/${p.id}/rehearse`}><Mic className="size-4" aria-hidden /> Prezentuj</Link>
                     </Button>
                     <Button size="sm" variant="outline" asChild>
                       <Link to={`/presentations/${p.id}`} aria-label={`Edytuj prezentację ${p.title}`}><Pencil className="size-4" aria-hidden /> Edytuj</Link>

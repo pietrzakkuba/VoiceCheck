@@ -3,13 +3,16 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Loader2, Mic, Save, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, Input, Label, Textarea } from '@/components/ui/primitives';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Alert, Input, Label } from '@/components/ui/primitives';
+import { PresentationRichEditor } from '@/components/PresentationRichEditor';
 import { deletePresentation, getPresentation, savePresentation } from '@/store/db';
 import { useSettings } from '@/store/settings';
 import {
-  MAX_PRESENTATION_CHARS, MAX_TITLE_CHARS, formatDuration, minutesInput, parseMinutes, textStats,
+  MAX_PRESENTATION_CHARS, MAX_TITLE_CHARS, formatDuration, textStats,
 } from '@/lib/presentation';
 import { uid } from '@/lib/utils';
+import { documentFromText, presentationText } from '@/lib/presentationDocument';
 import type { Presentation } from '@/types';
 
 export default function PresentationEditor() {
@@ -20,8 +23,8 @@ export default function PresentationEditor() {
 
   const [original, setOriginal] = useState<Presentation | null | undefined>(isNew ? null : undefined);
   const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
-  const [minutes, setMinutes] = useState('');
+  const [document, setDocument] = useState(() => documentFromText(''));
+  const text = useMemo(() => presentationText('', document), [document]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,29 +36,26 @@ export default function PresentationEditor() {
       setOriginal(p);
       if (p) {
         setTitle(p.title);
-        setText(p.text);
-        setMinutes(minutesInput(p.targetDurationSeconds));
+        setDocument(p.document ?? documentFromText(p.text));
       }
     });
     return () => { cancelled = true; };
   }, [id, isNew]);
 
   const stats = useMemo(() => textStats(text, target), [text, target]);
-  const duration = parseMinutes(minutes);
-  const over = typeof duration === 'number' && stats.estimatedSeconds > duration;
 
   const save = async (rehearse = false) => {
     if (!title.trim()) return setError('Podaj tytuł prezentacji.');
     if (stats.words < 1) return setError('Wpisz tekst prezentacji.');
-    if (duration === null) return setError('Czas wystąpienia musi być liczbą minut większą od zera (np. 5 lub 2,5).');
+    if (text.length > MAX_PRESENTATION_CHARS) return setError(`Tekst prezentacji przekracza limit ${MAX_PRESENTATION_CHARS} znaków.`);
     setError(null);
     setSaving(true);
     const now = Date.now();
     const p: Presentation = {
       id: original?.id ?? uid(),
       title: title.trim(),
-      text: text.trim(),
-      targetDurationSeconds: duration,
+      text,
+      document,
       createdAt: original?.createdAt ?? now,
       updatedAt: now,
     };
@@ -69,7 +69,7 @@ export default function PresentationEditor() {
   };
 
   const remove = async () => {
-    if (!original || !confirm(`Usunąć prezentację „${original.title}”? Nagrane próby pozostaną w historii sesji.`)) return;
+    if (!original) return;
     await deletePresentation(original.id);
     nav('/');
   };
@@ -92,7 +92,7 @@ export default function PresentationEditor() {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-5">
       <div>
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-4" aria-hidden /> Prezentacje
@@ -106,7 +106,7 @@ export default function PresentationEditor() {
         <CardHeader>
           <CardTitle>Treść</CardTitle>
           <CardDescription>
-            {stats.words} słów · {stats.syllables} sylab · w Twoim tempie docelowym ok. {formatDuration(stats.estimatedSeconds)} mówienia (bez pauz)
+            {stats.words} słów · {stats.syllables} sylab · Szacowany czas czytania: ok. {formatDuration(stats.estimatedSeconds)} (w Twoim tempie docelowym, bez pauz)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -115,37 +115,35 @@ export default function PresentationEditor() {
             <Input id="title" value={title} maxLength={MAX_TITLE_CHARS} onChange={(e) => setTitle(e.target.value)} placeholder="np. Wyniki kwartalne Q3" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="text">Tekst wystąpienia</Label>
-            <Textarea id="text" value={text} maxLength={MAX_PRESENTATION_CHARS} rows={14} onChange={(e) => setText(e.target.value)} placeholder="Wklej lub wpisz tekst, który chcesz wygłosić…" />
-            <p className="text-xs text-muted-foreground text-right">{text.length} / {MAX_PRESENTATION_CHARS} znaków</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="minutes" className="block">Czas na wystąpienie <span className="font-normal text-muted-foreground">(opcjonalnie)</span></Label>
-            <div className="flex items-center gap-2">
-              <Input id="minutes" inputMode="decimal" className="w-24" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="np. 5" aria-invalid={duration === null} />
-              <span className="text-sm text-muted-foreground">min</span>
-            </div>
-            {over && (
-              <p className="text-sm text-warn">
-                Przy Twoim tempie tekst zajmie ok. {formatDuration(stats.estimatedSeconds)} – więcej niż limit {formatDuration(duration)}, a do tego dojdą pauzy.
-              </p>
-            )}
+            <Label id="presentation-text-label" htmlFor="presentation-text">Tekst wystąpienia</Label>
+            <p className="text-xs text-muted-foreground">Wklej lub wpisz tekst, który chcesz wygłosić. Formatowanie będzie widoczne podczas prezentowania.</p>
+            <PresentationRichEditor document={document} onChange={setDocument} disabled={saving} />
+            <p id="presentation-text-count" className="text-xs text-muted-foreground text-right">{text.length} / {MAX_PRESENTATION_CHARS} znaków</p>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => void save(true)} disabled={saving}>
-          {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mic className="size-4" aria-hidden />} Zapisz i ćwicz
+          {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mic className="size-4" aria-hidden />} Zapisz i prezentuj
         </Button>
         <Button variant="outline" onClick={() => void save()} disabled={saving}>
           <Save className="size-4" aria-hidden /> Zapisz
         </Button>
         <Button variant="ghost" asChild><Link to="/">Anuluj</Link></Button>
         {original && (
-          <Button variant="ghost" className="ml-auto text-bad" onClick={() => void remove()}>
-            <Trash2 className="size-4" aria-hidden /> Usuń
-          </Button>
+          <ConfirmDialog
+            title="Usunąć prezentację?"
+            description={`Prezentacja „${original.title}” zostanie usunięta. Nagrane próby pozostaną w historii sesji.`}
+            confirmLabel="Usuń prezentację"
+            errorMessage="Nie udało się usunąć prezentacji. Spróbuj ponownie."
+            destructive
+            onConfirm={remove}
+          >
+            <Button variant="ghost" className="ml-auto text-bad">
+              <Trash2 className="size-4" aria-hidden /> Usuń
+            </Button>
+          </ConfirmDialog>
         )}
       </div>
     </div>

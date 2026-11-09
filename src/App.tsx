@@ -1,12 +1,14 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, NavLink, Route, Routes } from 'react-router';
-import { AudioLines, LayoutDashboard, Loader2, Settings as SettingsIcon } from 'lucide-react';
-import { TooltipProvider } from '@/components/ui/overlay';
+import { AudioLines, Crosshair, Loader2, Settings as SettingsIcon } from 'lucide-react';
+import { Tooltip, TooltipProvider } from '@/components/ui/overlay';
+import { buttonVariants } from '@/components/ui/button';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useApplyTheme } from '@/lib/theme';
 import { preloadVad } from '@/audio/capture';
 import { migrateLegacySessions } from '@/lib/sessionPipeline';
 import { cn } from '@/lib/utils';
+import { PwaStatus } from '@/components/PwaStatus';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Calibration = lazy(() => import('@/pages/Calibration'));
@@ -14,10 +16,11 @@ const SessionReport = lazy(() => import('@/pages/SessionReport'));
 const PresentationEditor = lazy(() => import('@/pages/PresentationEditor'));
 const PresentationRehearsal = lazy(() => import('@/pages/PresentationRehearsal'));
 const PresentationHistory = lazy(() => import('@/pages/PresentationHistory'));
+const FreeSpeech = lazy(() => import('@/pages/FreeSpeech'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const NAV = [
-  { to: '/', label: 'Pulpit', icon: LayoutDashboard, end: true },
+  { to: '/calibration', label: 'Kalibracja', icon: Crosshair },
   { to: '/settings', label: 'Ustawienia', icon: SettingsIcon },
 ];
 
@@ -36,30 +39,28 @@ export default function App() {
               <AudioLines className="size-5 text-primary" aria-hidden />
               <span>Voice<span className="text-primary">Check</span></span>
             </NavLink>
-            <nav className="order-last w-full min-w-0 flex items-center gap-1 overflow-x-auto sm:order-none sm:w-auto sm:flex-1" aria-label="Główna nawigacja">
-              {NAV.map(({ to, label, icon: Icon, end }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={end}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors',
-                      isActive ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground hover:text-foreground',
-                    )
-                  }
-                >
-                  <Icon className="size-4" aria-hidden />
-                  <span className="hidden md:inline">{label}</span>
-                </NavLink>
+            <nav className="ml-auto flex flex-wrap items-center justify-end gap-2" aria-label="Główna nawigacja">
+              {NAV.map(({ to, label, icon: Icon }) => (
+                <Tooltip key={to} content={label} className="sm:hidden">
+                  <NavLink
+                    to={to}
+                    aria-label={label}
+                    className={cn(
+                      buttonVariants({ variant: 'ghost', size: 'icon' }),
+                      'sm:w-auto sm:px-3 text-muted-foreground aria-[current=page]:bg-accent aria-[current=page]:text-foreground',
+                    )}
+                  >
+                    <Icon className="size-4" aria-hidden />
+                    <span className="hidden sm:inline">{label}</span>
+                  </NavLink>
+                </Tooltip>
               ))}
-            </nav>
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <ThemeSwitch />
-            </div>
+            </nav>
           </div>
         </header>
         <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-6">
+          <PwaStatus />
           <Suspense
             fallback={
               <div className="flex justify-center py-20 text-muted-foreground">
@@ -76,7 +77,7 @@ export default function App() {
               <Route path="/presentations/:id/rehearse" element={<PresentationRehearsal />} />
               <Route path="/presentations/:id/history" element={<PresentationHistory />} />
               <Route path="/reading" element={<Navigate to="/" replace />} />
-              <Route path="/speaking" element={<Navigate to="/" replace />} />
+              <Route path="/speaking" element={<FreeSpeech />} />
               <Route path="/session/:id" element={<SessionReport />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Dashboard />} />

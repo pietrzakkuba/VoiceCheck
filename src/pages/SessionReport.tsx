@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { AlertTriangle, CheckCircle2, Download, History, Info, Loader2, Mic, Pause, Play, RefreshCw, Trash2, Wind } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, History, Info, Loader2, Mic, Pause, Play, RefreshCw, Trash2, Wind } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { SessionTime } from '@/components/SessionTime';
 import { Alert } from '@/components/ui/primitives';
@@ -14,6 +15,7 @@ import { db, deleteSession } from '@/store/db';
 import { useSettings } from '@/store/settings';
 import { recomputeSession } from '@/lib/sessionPipeline';
 import { MODE_LABELS } from '@/lib/labels';
+import { formatDuration, textStats } from '@/lib/presentation';
 import { cn, formatMs } from '@/lib/utils';
 import type { PhraseTempo, TipSeverity, TrainingSession } from '@/types';
 
@@ -87,6 +89,9 @@ export default function SessionReport() {
   const [lo, hi] = session.settings.targetArticulationRate;
   const limitS = session.settings.maxContinuousSpeechSeconds;
   const zone = rateZone(m.syllables > 0 ? m.articulationRate : null, [lo, hi]);
+  const readingStats = session.mode === 'presentation' && session.targetText
+    ? textStats(session.targetText, session.settings.targetArticulationRate)
+    : null;
 
   const playPhrase = (i: number) => {
     const p = session.phrases[i];
@@ -115,13 +120,15 @@ export default function SessionReport() {
   };
 
   const remove = async () => {
-    if (!confirm('Usunąć tę sesję wraz z nagraniem?')) return;
     await deleteSession(session.id);
     nav('/');
   };
 
   return (
     <div className="space-y-5">
+      <Button variant="outline" size="sm" asChild>
+        <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
+      </Button>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Raport sesji{presentation ? `: ${presentation.title}` : ''}</h1>
@@ -137,11 +144,25 @@ export default function SessionReport() {
           )}
           {presentation && (
             <Button size="sm" asChild>
-              <Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Ćwicz ponownie</Link>
+              <Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Prezentuj ponownie</Link>
+            </Button>
+          )}
+          {session.mode === 'free_speech' && (
+            <Button size="sm" asChild>
+              <Link to="/speaking"><Mic className="size-4" aria-hidden /> Ćwicz ponownie</Link>
             </Button>
           )}
           {debug && <Button variant="outline" size="sm" onClick={exportJson}><Download className="size-4" /> JSON</Button>}
-          <Button variant="ghost" size="sm" onClick={() => void remove()} aria-label="Usuń sesję"><Trash2 className="size-4" /></Button>
+          <ConfirmDialog
+            title="Usunąć sesję?"
+            description="Ta sesja i jej nagranie zostaną usunięte. Tej operacji nie można cofnąć."
+            confirmLabel="Usuń sesję"
+            errorMessage="Nie udało się usunąć sesji. Spróbuj ponownie."
+            destructive
+            onConfirm={remove}
+          >
+            <Button variant="ghost" size="sm" aria-label="Usuń sesję"><Trash2 className="size-4" aria-hidden /></Button>
+          </ConfirmDialog>
         </div>
       </div>
 
@@ -161,8 +182,15 @@ export default function SessionReport() {
       {session.warnings.map((w, i) => <Alert key={i} variant="warn">{w}</Alert>)}
 
       <Card>
-        <CardContent>
-          <SessionTime seconds={session.durationSeconds} targetSeconds={session.targetDurationSeconds} />
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <SessionTime seconds={session.durationSeconds} />
+          {readingStats && readingStats.words > 0 && (
+            <div className="space-y-1">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Szacowany czas czytania</div>
+              <div className="text-2xl font-semibold tabular-nums text-foreground">ok. {formatDuration(readingStats.estimatedSeconds)}</div>
+              <div className="text-xs text-muted-foreground">W tempie docelowym zapisanym w sesji, bez pauz</div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

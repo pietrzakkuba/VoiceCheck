@@ -5,21 +5,34 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 
 ## Funkcje
 
-- **Biblioteka prezentacji**: zapisywanie tekstów wystąpień z tytułem i opcjonalnym limitem czasu; aplikacja
-  szacuje czas mówienia w Twoim tempie docelowym i ostrzega, gdy tekst nie mieści się w limicie.
+- **Biblioteka prezentacji**: zapisywanie tekstów wystąpień z tytułem; aplikacja
+  wyświetla szacowany czas czytania w Twoim tempie docelowym (bez pauz), bez ręcznego limitu czasu.
+  Edytor pozwala stosować pogrubienie, kursywę, dwa poziomy nagłówków, listy punktowane i numerowane
+  oraz akapity. Podgląd i tekst podczas próby zachowują formatowanie, również po ponownym otwarciu.
+  Limit 20 000 znaków i statystyki dotyczą samego tekstu, bez znaczników formatowania.
+  Wklejanie zachowuje obsługiwane formatowanie, pomijając obce style, obrazki i inne niedozwolone elementy.
+  Zmiana przekraczająca limit nie jest wprowadzana; edytor wyświetla komunikat bez obcinania tekstu.
+  Starsze prezentacje można nadal otwierać i edytować. Raporty sesji zachowują zwykły tekst wystąpienia.
   Przycisk „Historia” przy każdej prezentacji pokazuje wszystkie jej próby, od najnowszej, z datą,
-  czasem trwania, tempem i przejściem do raportu. Historia jest też dostępna z raportu próby.
-- **Próba prezentacji**: przycisk „Ćwicz” otwiera tekst prezentacji do czytania na głos; każda próba jest
-  zapisywana jako sesja powiązana z prezentacją.
-  Tekst podczas ćwiczenia zachowuje oryginalne podziały wierszy i puste linie.
+  czasem trwania, tempem i przejściem do raportu. Tytuł prezentacji jest tylko w nagłówku;
+  poszczególne próby wyróżnia data i godzina nagrania. Historia jest też dostępna z raportu próby.
+- **Prezentowanie**: przycisk „Prezentuj” otwiera tekst do czytania na głos podczas próby lub właściwego
+  wystąpienia. W edytorze służy do tego „Zapisz i prezentuj”, a w raporcie „Prezentuj ponownie”.
+  Każda sesja jest zapisywana i powiązana z prezentacją.
+  Tekst podczas prezentowania zachowuje oryginalne podziały wierszy i puste linie.
   Domyślnie przewija się automatycznie zgodnie z postępem szacowanym z wykrytych sylab,
   bez przewijania podczas ciszy i kalibracji. Przełącznik na ekranie treningu pozwala wyłączyć
   tę funkcję; wybór jest zapamiętywany. Nie jest to rozpoznawanie wypowiadanych słów.
   Ręczne przewinięcie wyłącza automatyczne przewijanie i jego przełącznik. Ponowne włączenie
   przełącznika przywraca przewijanie do aktualnej szacowanej pozycji czytania.
+  Szacowany czas czytania jest widoczny w bibliotece, edytorze oraz przed próbą i podczas nagrania.
   Licznik przy tekście i w raporcie pokazuje czas całej sesji (z pauzami i kalibracją mikrofonu),
-  pozostały czas lub przekroczenie limitu. Raport zachowuje limit obowiązujący na początku próby;
-  starsze sesje bez zapisanego limitu pokazują tylko czas trwania.
+  bez odliczania i ostrzeżeń o przekroczeniu czasu. Dawne ręczne limity są ignorowane.
+  Raport próby obok czasu sesji pokazuje szacowany czas czytania jej zapisanego tekstu,
+  obliczony według tempa docelowego zapisanego w sesji, bez pauz.
+- **Swobodne mówienie**: karta nad biblioteką prezentacji (adres `/speaking`) pozwala czytać tekst spoza
+  aplikacji (kartka, inny ekran) lub mówić z pamięci. Aplikacja pokazuje wtedy tylko panele tempa i oddechu
+  oraz licznik czasu (bez limitu); sesja trafia do historii z pełnym raportem.
 - **Na żywo podczas nagrania**: panel tempa (sylaby/s), pasek oddechu, przebieg fali,
   ostrzeżenia o szumie i przesterowaniu. Po przekroczeniu limitu mówienia bez oddechu aplikacja odtwarza krótki
   dźwięk (i wibrację na telefonie).
@@ -37,8 +50,12 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 - **Raport sesji**: tempo mowy, liczba oddechów, najdłuższa fraza bez oddechu, krótkie wskazówki z odsłuchem
   fragmentu, oś czasu (fale, frazy i pauzy oddechowe, tempo każdej frazy) oraz tabela fraz.
   Oś czasu przewija się automatycznie podczas odsłuchu, utrzymując wskaźnik czasu w widocznym obszarze.
-- **Pulpit**: biblioteka prezentacji z dodawaniem, edycją i uruchamianiem prób, a poniżej historia sesji.
+- **Strona główna**: biblioteka prezentacji z dodawaniem, edycją i uruchamianiem prób, a poniżej historia sesji.
   Kalibracja jest dostępna z nagłówka pulpitu. Dawny adres `/presentations` przekierowuje na pulpit.
+- **Historia sesji**: na stronie głównej i w historii prezentacji lista pokazuje po 10 sesji na stronę,
+  od najnowszej. Przyciski „Poprzednia” i „Następna” pozwalają przeglądać całą historię.
+  Kosz przy sesji pozwala trwale usunąć ją wraz z nagraniem po potwierdzeniu, bez usuwania prezentacji
+  ani zapisanej kalibracji.
 
 ## Jak to działa
 
@@ -71,16 +88,48 @@ npm run build        # statyczna wersja w dist/
 npm run preview
 ```
 
-Aplikacja wymaga **cross-origin isolation** (SharedArrayBuffer dla wielowątkowego WASM). Serwer deweloperski
-i `preview` ustawiają nagłówki COOP/COEP; na hostingu statycznym trzeba je skonfigurować lub użyć
-`coi-serviceworker`. Mikrofon działa tylko przez HTTPS lub na `localhost`.
+Aplikacja zachowuje obsługę **cross-origin isolation** (COOP/COEP dla WASM). Serwer deweloperski
+i `preview` ustawiają nagłówki COOP/COEP. Na hostingu produkcyjnym zalecane są
+`Cross-Origin-Opener-Policy: same-origin` i `Cross-Origin-Embedder-Policy: require-corp`.
+Jeden service worker PWA zapewnia te nagłówki również na hostingu bez ich konfiguracji;
+pierwsza wizyta może wtedy wymagać jednego automatycznego przeładowania przed uruchomieniem interfejsu.
+Mikrofon i service worker działają tylko przez HTTPS lub na `localhost`.
 
-Aplikacja używa adresów bez `#` (np. `/presentations`, `/presentations/<id>/rehearse`, `/session/<id>`). Na hostingu należy skonfigurować
+Aplikacja używa adresów bez `#` (np. `/presentations`, `/presentations/<id>/rehearse`, `/speaking`, `/session/<id>`). Na hostingu należy skonfigurować
 fallback SPA (zwracanie `index.html` dla podstron); Vite robi to automatycznie.
+Pliki `sw.js`, `manifest.webmanifest`, `offline.html` i `icons/` muszą być serwowane jako rzeczywiste pliki,
+bez przekierowania do `index.html`. Dla `sw.js` zalecany jest `Cache-Control: no-cache`.
+Obecna konfiguracja zakłada wdrożenie w katalogu głównym domeny.
+
+## Instalacja PWA i offline
+
+Po wdrożeniu wersji produkcyjnej (`npm run build`, lokalnie `npm run preview`) VoiceCheck można
+zainstalować z Ustawień, gdy przeglądarka udostępnia przycisk instalacji, lub z menu przeglądarki
+(np. Chrome/Edge na komputerze i Chrome na Androidzie).
+Na iPhonie/iPadzie otwórz stronę w Safari i wybierz **Udostępnij → Do ekranu początkowego**.
+Możliwość instalacji i obsługa mikrofonu zależą od przeglądarki. Wersja deweloperska nie rejestruje PWA.
+
+**Podstawowy tryb offline** jest dostępny po pierwszej poprawnej wizycie online i aktywacji service workera.
+Przy otwarciu lub odświeżeniu dowolnego adresu bez sieci pojawia się ekran z przyciskiem „Spróbuj ponownie”.
+Nie jest to pełna aplikacja offline: duże modele audio, pliki WASM i cały interfejs nie są pobierane do cache na zapas.
+Utrata połączenia w już otwartej aplikacji pokazuje komunikat, ale nie zasłania pracy i nie przerywa nagrania.
+Pierwsze uruchomienie na urządzeniu bez internetu nie jest obsługiwane.
+
+**Aktualizacje**: po wykryciu nowej wersji pojawia się komunikat. Zakończ nagranie i zapisz edytowany tekst,
+następnie wybierz „Aktualizuj” i potwierdź przeładowanie. Pozostałe otwarte okna nie przeładowują się automatycznie.
+Przeglądarka sprawdza aktualizacje przy kolejnych otwarciach aplikacji; nowa wersja może też zostać aktywowana
+po zamknięciu wszystkich jej okien. Aktualizacja nie usuwa prezentacji, nagrań ani ustawień.
+Dane pozostają lokalne dla danego urządzenia i profilu przeglądarki; instalacja nie zapewnia synchronizacji
+ani kopii zapasowej. Usunięcie danych witryny w przeglądarce usuwa też lokalne dane aplikacji.
+
+Ikony odtwarza `npm run icons` (na podstawie znaku używanego w faviconie).
 
 ## Prywatność
 
 Całe przetwarzanie odbywa się lokalnie. Dane można usunąć w Ustawieniach → Dane.
+Usuwanie danych, prezentacji i sesji oraz przywracanie ustawień domyślnych wymaga potwierdzenia
+w oknie aplikacji. „Anuluj” i Escape zamykają potwierdzenie bez zmian; kliknięcie tła nie zamyka okna.
+Podczas wykonywania operacji przyciski są zablokowane, a ewentualny błąd jest wyświetlany w oknie.
 
 ## Debug
 
@@ -94,7 +143,7 @@ scripts/            kopiowanie zasobów WASM i VAD
 src/audio/          mikrofon, worklet, VAD, analiza na żywo, dekodowanie
 src/engine/         analiza: segmentacja, jądra sylab, frazy, pauzy, tempo, wskazówki
 src/lib/            zapis i przeliczanie sesji, sygnał oddechu, motyw, etykiety
-src/pages/          pulpit, prezentacje (lista, edytor, próba), kalibracja, raport, ustawienia
+src/pages/          pulpit, prezentacje (lista, edytor, próba), swobodne mówienie, kalibracja, raport, ustawienia
 src/components/     HUD, raport, komponenty UI
 src/data/           tekst kalibracyjny (treść autorska)
 ```

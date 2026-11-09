@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => ({
     removeEventListener: vi.fn<(type: string, listener: EventListener) => void>(),
   },
   header: { getBoundingClientRect: () => ({ height: 100 }) },
-  paragraph: { children: [] as Array<{ getBoundingClientRect: () => { top: number } }> },
+  paragraph: {
+    children: [] as Array<{ getBoundingClientRect: () => { top: number } }>,
+    querySelector: vi.fn(),
+    querySelectorAll: vi.fn(),
+  },
   effects: [] as Array<() => void>,
   effectDeps: [] as Array<readonly unknown[]>,
   cleanups: [] as Array<void | (() => void)>,
@@ -77,6 +81,11 @@ describe('rehearsal text auto-scroll', () => {
     mocks.paragraph.children = [100, 100, 100, 100, 500, 500, 900, 900, 1500].map((top) => ({
       getBoundingClientRect: () => ({ top: top - mocks.viewport.scrollTop }),
     }));
+    mocks.paragraph.querySelector.mockReset().mockImplementation((selector: string) => {
+      const index = Number(selector.match(/"(\d+)"/)?.[1]);
+      return mocks.paragraph.children[index] ?? null;
+    });
+    mocks.paragraph.querySelectorAll.mockReset().mockImplementation(() => mocks.paragraph.children);
   });
 
   it('keeps the first words visible without scrolling', () => {
@@ -277,7 +286,7 @@ describe('rehearsal text auto-scroll', () => {
     const text = '  Ala (ma) kota.\r\n\nDwa  zdania.\n';
     const html = renderText(null, true, text);
     const paragraph = html.match(/<p class="[^"]*whitespace-pre-wrap">([\s\S]*?)<\/p>/)?.[1];
-    expect(paragraph?.replace(/<\/?span>/g, '')).toBe(text);
+    expect(paragraph?.replace(/<\/?span\b[^>]*>/g, '')).toBe(text);
   });
 
   it('counts expanded numbers and abbreviations before advancing to the next word', () => {

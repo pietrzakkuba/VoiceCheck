@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { db, listSessions } from './db';
+import { db, deleteSession, listSessions } from './db';
 
 vi.mock('dexie', () => ({
   default: class {
     sessions = {
+      get: vi.fn(),
+      delete: vi.fn(),
       toCollection: () => ({
         reverse() { return this; },
         sortBy: vi.fn(),
@@ -12,6 +14,8 @@ vi.mock('dexie', () => ({
       where: vi.fn(),
       orderBy: vi.fn(),
     };
+    audio = { delete: vi.fn() };
+    transaction = vi.fn(async (_mode, _sessions, _audio, action: () => Promise<void>) => action());
     version() { return { stores: vi.fn() }; }
   },
 }));
@@ -29,6 +33,33 @@ describe('session history queries', () => {
     expect(where).toHaveBeenCalledWith({ presentationId: 'p1' });
     expect(reverse).toHaveBeenCalledOnce();
     expect(sortBy).toHaveBeenCalledWith('timestamp');
+  });
+
+  describe('session deletion', () => {
+    it('deletes the session and its audio in one transaction without touching other data', async () => {
+      vi.spyOn(db.sessions, 'get').mockResolvedValue({ audioKey: 'audio-s1' } as Awaited<ReturnType<typeof db.sessions.get>>);
+      const removeSession = vi.spyOn(db.sessions, 'delete').mockResolvedValue(undefined);
+      const removeAudio = vi.spyOn(db.audio, 'delete').mockResolvedValue(undefined);
+      await deleteSession('s1');
+      expect(db.transaction).toHaveBeenCalledWith('rw', db.sessions, db.audio, expect.any(Function));
+      expect(removeSession).toHaveBeenCalledExactlyOnceWith('s1');
+      expect(removeAudio).toHaveBeenCalledExactlyOnceWith('audio-s1');
+    });
+
+    it('handles a session already removed by another view', async () => {
+      vi.spyOn(db.sessions, 'get').mockResolvedValue(undefined);
+      const removeSession = vi.spyOn(db.sessions, 'delete').mockResolvedValue(undefined);
+      const removeAudio = vi.spyOn(db.audio, 'delete').mockResolvedValue(undefined);
+      await deleteSession('missing');
+      expect(removeSession).toHaveBeenCalledWith('missing');
+      expect(removeAudio).not.toHaveBeenCalled();
+    });
+
+    it('propagates storage errors to the confirmation dialog', async () => {
+      vi.spyOn(db.sessions, 'get').mockResolvedValue({ audioKey: 'audio-s1' } as Awaited<ReturnType<typeof db.sessions.get>>);
+      vi.spyOn(db.sessions, 'delete').mockRejectedValue(new Error('Storage unavailable'));
+      await expect(deleteSession('s1')).rejects.toThrow('Storage unavailable');
+    });
   });
 
   it('keeps global history ordered by timestamp without a presentation filter', async () => {

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { CardContent } from '@/components/ui/card';
-import { normalizeText } from '@/engine/normalize';
-import { countTextSyllables } from '@/engine/syllables';
+import { readingChunks, presentationText } from '@/lib/presentationDocument';
+import { PresentationContent } from '@/components/PresentationContent';
+import type { PresentationDocument } from '@/types';
 
-export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollChange, children }: {
+export function RehearsalText({ text, document, syllablesRead, autoScroll, onAutoScrollChange, children }: {
   text: string;
+  document?: PresentationDocument;
   syllablesRead: number | null;
   autoScroll: boolean;
   onAutoScrollChange: (enabled: boolean) => void;
@@ -12,16 +14,11 @@ export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollCha
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLParagraphElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
   const expectedScrollTop = useRef(0);
   const interruptedRef = useRef(false);
-  const chunks = useMemo(() => {
-    let endSyllable = 0;
-    return (text.match(/\s+|\S+/g) ?? []).map((raw) => {
-      endSyllable += countTextSyllables(normalizeText(raw).map((token) => token.word));
-      return { raw, endSyllable };
-    });
-  }, [text]);
+  const plainText = useMemo(() => presentationText(text, document), [text, document]);
+  const chunks = useMemo(() => readingChunks(plainText), [plainText]);
 
   const disableAutoScroll = useCallback(() => {
     if (interruptedRef.current) return;
@@ -32,7 +29,7 @@ export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollCha
   useEffect(() => {
     interruptedRef.current = false;
     expectedScrollTop.current = viewportRef.current?.scrollTop ?? 0;
-  }, [autoScroll, text]);
+  }, [autoScroll, plainText, document]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -73,7 +70,11 @@ export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollCha
     const paragraph = textRef.current;
     if (!autoScroll || interruptedRef.current || syllablesRead === null || !viewport || !header || !paragraph || viewport.clientHeight === 0) return;
     const next = chunks.findIndex((chunk) => chunk.endSyllable > syllablesRead);
-    const word = paragraph.children[next < 0 ? chunks.length - 1 : next];
+    let word = paragraph.querySelector(`[data-reading-chunk="${next < 0 ? chunks.length - 1 : next}"]`);
+    if (!word) {
+      const fragments = paragraph.querySelectorAll('[data-reading-chunk]');
+      word = fragments[fragments.length - 1];
+    }
     if (!word) return;
     const headerHeight = header.getBoundingClientRect().height;
     const followY = headerHeight + Math.max(0, viewport.clientHeight - headerHeight) * 0.35;
@@ -89,9 +90,10 @@ export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollCha
           {children}
         </div>
         <CardContent className="py-5">
-          <p ref={textRef} className="text-xl md:text-2xl leading-relaxed md:leading-relaxed whitespace-pre-wrap">
-            {chunks.map((chunk, index) => <span key={index}>{chunk.raw}</span>)}
-          </p>
+          <div ref={textRef}>
+            <PresentationContent text={plainText} document={document} chunks={chunks}
+              className="text-xl md:text-2xl leading-relaxed md:leading-relaxed" />
+          </div>
         </CardContent>
       </div>
     </div>

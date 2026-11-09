@@ -151,3 +151,36 @@
 .cv-pulse-red {
   animation: cv-pulse-red 1s ease-in-out infinite;
 }
+
+.presentation-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.presentation-content p {
+  min-height: 1lh;
+}
+.presentation-content > * + *,
+.presentation-content li > * + * {
+  margin-top: 0.6em;
+}
+.presentation-content h2 {
+  font-size: 1.35em;
+  font-weight: 700;
+}
+.presentation-content h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+.presentation-content ul,
+.presentation-content ol {
+  padding-left: 1.5em;
+}
+.presentation-content ul {
+  list-style-type: disc;
+}
+.presentation-content ol {
+  list-style-type: decimal;
+}
+.presentation-content li + li {
+  margin-top: 0.25em;
+}

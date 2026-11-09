@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { AlertTriangle, CheckCircle2, Crosshair } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Crosshair } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
@@ -72,9 +72,14 @@ export default function Calibration() {
   };
 
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold flex items-center gap-2"><Crosshair className="size-6 text-primary" aria-hidden /> Kalibracja</h1>
+        {!active && (
+          <Button asChild variant="ghost" size="sm" className="-ml-3 h-9 text-muted-foreground">
+            <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
+          </Button>
+        )}
+        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><Crosshair className="size-6 text-primary" aria-hidden /> Kalibracja</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Około minuty czytania. Znamy liczbę sylab w tym tekście, więc po nagraniu dopasujemy pomiar tempa do Twojego głosu i mikrofonu.
         </p>

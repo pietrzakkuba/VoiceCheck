@@ -15,7 +15,6 @@ export interface SessionMeta {
   mode: TrainingMode;
   targetText?: string;
   presentationId?: string;
-  targetDurationSeconds?: number;
 }
 
 /** Everything needed to (re)compute a session. */
@@ -88,7 +87,6 @@ function buildSession(
     mode: meta.mode,
     targetText: meta.targetText,
     presentationId: meta.presentationId,
-    targetDurationSeconds: meta.targetDurationSeconds,
     deviceLabel: rec.deviceLabel,
     durationSeconds: rec.durationMs / 1000,
     audioKey: base.audioKey ?? `audio-${id}`,
