@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef } from 'react';
 import { AlertTriangle, Loader2, Mic, MicOff, Square, VolumeX } from 'lucide-react';
 import type { LiveStats } from '@/audio/liveAnalyzer';
 import { Alert } from '@/components/ui/primitives';
@@ -53,15 +54,57 @@ export function RecordControls({ phase, onStart, onStop, startLabel = 'Rozpoczni
   stopLabel?: string;
   disabled?: boolean;
 }) {
-  if (phase === 'recording') {
-    return <Button size="lg" variant="destructive" onClick={onStop}><Square aria-hidden /> {stopLabel}</Button>;
-  }
-  if (phase === 'processing' || phase === 'starting') {
-    return (
-      <Button size="lg" disabled><Loader2 className="animate-spin" aria-hidden /> {phase === 'starting' ? 'Uruchamiam mikrofon…' : 'Analizuję…'}</Button>
-    );
-  }
-  return <Button size="lg" onClick={onStart} disabled={disabled}><Mic aria-hidden /> {startLabel}</Button>;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const actionPending = useRef(false);
+  const hintId = useId();
+  const busy = phase === 'starting' || phase === 'processing';
+  const unavailable = busy || (phase !== 'recording' && disabled);
+
+  useEffect(() => {
+    actionPending.current = false;
+  }, [phase]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== ' ' || event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (
+        target.isContentEditable ||
+        (target !== buttonRef.current && target.closest('input, textarea, select, button, a[href], summary, audio, video, [role="button"], [role="switch"], [role="checkbox"], [role="radio"], [role="slider"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="tab"], [role="dialog"], [role="alertdialog"], [aria-modal="true"]'))
+      )) return;
+      if (unavailable && !busy) return;
+      event.preventDefault();
+      if (event.repeat || unavailable || actionPending.current) return;
+      actionPending.current = true;
+      if (phase === 'recording') onStop();
+      else onStart();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [phase, onStart, onStop, busy, unavailable]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <Button
+        ref={buttonRef}
+        size="lg"
+        variant={phase === 'recording' ? 'destructive' : 'default'}
+        onClick={phase === 'recording' ? onStop : onStart}
+        disabled={unavailable}
+        aria-keyshortcuts={unavailable ? undefined : 'Space'}
+        aria-describedby={unavailable ? undefined : hintId}
+      >
+        {busy ? <Loader2 className="animate-spin" aria-hidden /> : phase === 'recording' ? <Square aria-hidden /> : <Mic aria-hidden />}
+        {phase === 'starting' ? 'Uruchamiam mikrofon…' : phase === 'processing' ? 'Analizuję…' : phase === 'recording' ? stopLabel : startLabel}
+      </Button>
+      {!unavailable && (
+        <p id={hintId} className="text-sm leading-7 text-muted-foreground">
+          <kbd className="rounded border bg-muted px-2 py-1 font-sans text-xs">Spacja</kbd>
+          {' — '}{phase === 'recording' ? 'zakończ nagranie' : 'rozpocznij nagranie'}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function SessionErrors({ error, deviceWarning }: { error: string | null; deviceWarning: string | null }) {

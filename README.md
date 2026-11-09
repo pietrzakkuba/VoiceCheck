@@ -30,6 +30,9 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   Obok niego stale widoczny jest panel oddechu, również podczas uruchamiania i kalibracji mikrofonu.
   Panele mają stały układ, a zmiany komunikatów nie przesuwają tekstu. Ostrzeżenia oddechu zmieniają
   kolor bez pulsowania; pasek i licznik pokazują czas mówienia bez pauzy.
+  Paski przewijania są wąskie i dopasowane do motywu; w ramce treningu są odsunięte od jej krawędzi.
+  Spacja rozpoczyna i kończy nagranie podczas próby i kalibracji; podpowiedź jest widoczna przy przycisku.
+  Skrót nie działa podczas pisania, obsługi innych kontrolek ani uruchamiania mikrofonu i analizy nagrania.
 - **Kalibracja**: minuta czytania znanego tekstu dopasowuje pomiar do głosu i mikrofonu.
 - **Raport sesji**: tempo mowy, liczba oddechów, najdłuższa fraza bez oddechu, krótkie wskazówki z odsłuchem
   fragmentu, oś czasu (fale, frazy i pauzy oddechowe, tempo każdej frazy) oraz tabela fraz.

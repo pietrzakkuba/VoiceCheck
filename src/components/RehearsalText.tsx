@@ -47,7 +47,7 @@ export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollCha
       if (event.touches.length === 1 && viewport.scrollHeight > viewport.clientHeight) disableAutoScroll();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.defaultPrevented && event.target === viewport && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) disableAutoScroll();
+      if (!event.defaultPrevented && event.target === viewport && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) disableAutoScroll();
     };
     const onPointerDown = (event: PointerEvent) => {
       const scrollbarStart = viewport.getBoundingClientRect().left + viewport.clientLeft + viewport.clientWidth;
@@ -83,15 +83,17 @@ export function RehearsalText({ text, syllablesRead, autoScroll, onAutoScrollCha
   }, [autoScroll, syllablesRead, chunks]);
 
   return (
-    <div ref={viewportRef} className="max-h-[65vh] overflow-y-auto rounded-lg text-card-foreground [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
-      <div ref={headerRef} className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
-        {children}
+    <div className="overflow-hidden rounded-[inherit] p-1 text-card-foreground">
+      <div ref={viewportRef} className="max-h-[65vh] overflow-y-auto rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
+        <div ref={headerRef} className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
+          {children}
+        </div>
+        <CardContent className="py-5">
+          <p ref={textRef} className="text-xl md:text-2xl leading-relaxed md:leading-relaxed whitespace-pre-wrap">
+            {chunks.map((chunk, index) => <span key={index}>{chunk.raw}</span>)}
+          </p>
+        </CardContent>
       </div>
-      <CardContent className="py-5">
-        <p ref={textRef} className="text-xl md:text-2xl leading-relaxed md:leading-relaxed whitespace-pre-wrap">
-          {chunks.map((chunk, index) => <span key={index}>{chunk.raw}</span>)}
-        </p>
-      </CardContent>
     </div>
   );
 }

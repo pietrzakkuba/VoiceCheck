@@ -86,6 +86,15 @@ describe('rehearsal text auto-scroll', () => {
     expect(mocks.viewport.scrollTop).toBe(0);
   });
 
+  it('insets the scroll viewport inside a clipped frame without changing its scroll target', () => {
+    const html = renderText(3);
+    expect(html).toContain('<div class="overflow-hidden rounded-[inherit] p-1 text-card-foreground"><div class="max-h-[65vh] overflow-y-auto');
+    expect(html).toContain('focus-visible:-outline-offset-2');
+    expect(html).toContain('[scrollbar-gutter:stable]');
+    expect(mocks.viewport.scrollTop).toBe(225);
+    expect(mocks.listeners.size).toBe(5);
+  });
+
   it('follows syllable progress and leaves reading space below the sticky header', () => {
     renderText(3);
     expect(mocks.viewport.scrollTop).toBe(225);
@@ -166,7 +175,7 @@ describe('rehearsal text auto-scroll', () => {
     expect(mocks.viewport.scrollTop).toBe(225);
   });
 
-  it.each(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])('pauses for the %s scroll key', (key) => {
+  it.each(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'])('pauses for the %s scroll key', (key) => {
     renderText(3);
     dispatch('keydown', { key });
     renderText(5);
@@ -179,6 +188,7 @@ describe('rehearsal text auto-scroll', () => {
     dispatch('wheel', { deltaY: 0 });
     dispatch('touchmove', { touches: [{}, {}] });
     dispatch('keydown', { key: 'Enter' });
+    dispatch('keydown', { key: ' ' });
     dispatch('keydown', { key: ' ' }, {});
     dispatch('pointerdown', { button: 0, clientX: 100 }, {});
     renderText(5);
