@@ -94,6 +94,17 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='switch']:not(:disabled),
+  [role='tab']:not(:disabled),
+  [role='menuitem'],
+  [role='option'],
+  select:not(:disabled),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
 }
 
 @keyframes cv-pulse-red {
