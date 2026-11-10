@@ -1,5 +1,9 @@
 # VoiceCheck
 
+Nazwa aplikacji i projektu to **VoiceCheck**; pakiet npm i prefiks eksportowanych raportów używają
+zapisu `voicecheck`. Starsze identyfikatory lokalnej bazy (`clearvoice`) i ustawień
+(`clearvoice_settings_v2`) pozostają bez zmian, aby zachować dostęp do zapisanych danych.
+
 Trener wystąpień i prezentacji po polsku: ćwicz wygłaszanie własnego tekstu, kontrolując tempo i oddech. Działa
 w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opuszczają komputera.
 

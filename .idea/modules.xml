@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/ClearVoiceAI.iml" filepath="$PROJECT_DIR$/.idea/ClearVoiceAI.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/VoiceCheck.iml" filepath="$PROJECT_DIR$/.idea/VoiceCheck.iml" />
     </modules>
   </component>
 </project>
