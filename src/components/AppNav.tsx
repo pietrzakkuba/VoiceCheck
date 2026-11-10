@@ -40,7 +40,7 @@ function Logo() {
   );
 }
 
-/** Top bar on phones: logo + secondary actions. Hidden on md+ where the sidebar takes over. */
+/** Top bar on phones: logo + settings. Hidden on md+ where the sidebar takes over. */
 export function MobileHeader() {
   const t = useT();
   return (
@@ -62,8 +62,6 @@ export function MobileHeader() {
               </NavLink>
             </Tooltip>
           ))}
-          <LanguageSwitch />
-          <ThemeSwitch />
         </nav>
       </div>
     </header>

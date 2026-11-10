@@ -65,15 +65,21 @@ describe('app navigation', () => {
     expect(html).toContain('hidden md:flex');
   });
 
-  it('keeps settings, language and theme but not calibration in the mobile header', () => {
+  it('keeps only logo and settings in the mobile header', () => {
     const html = render('/settings', <MobileHeader />);
     expect(html).not.toContain('href="/calibration"');
     expect(html).toContain('href="/"');
     expect(currentLinks(html)).toEqual(['/settings']);
     expect(html).not.toContain('href="/history"');
     expect(html).toContain('aria-label="Narzędzia"');
-    expect(html).toContain('aria-label="Język aplikacji"');
-    expect(html).toContain('aria-label="Ciemny motyw"');
+    expect(html).not.toContain('aria-label="Język aplikacji"');
+    expect(html).not.toContain('aria-label="Ciemny motyw"');
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const tools = container.querySelector('nav');
+    expect(tools?.querySelectorAll('a')).toHaveLength(1);
+    expect(tools?.querySelector('a')?.getAttribute('href')).toBe('/settings');
+    expect(tools?.querySelectorAll('button')).toHaveLength(0);
   });
 
   it('renders English labels when the app language is English', () => {
