@@ -101,6 +101,9 @@ Mikrofon i service worker działają tylko przez HTTPS lub na `localhost`.
 
 Aplikacja używa adresów bez `#` (np. `/presentations`, `/presentations/<id>/rehearse`, `/speaking`, `/session/<id>`). Na hostingu należy skonfigurować
 fallback SPA (zwracanie `index.html` dla podstron); Vite robi to automatycznie.
+Na Vercelu zapewnia to plik `vercel.json` w katalogu głównym projektu. Po zmianie konfiguracji
+należy ponownie wdrożyć aplikację; odświeżanie i bezpośrednie otwieranie podstron będzie wtedy działać.
+Istniejące pliki statyczne mają pierwszeństwo przed regułą fallbacku.
 Pliki `sw.js`, `manifest.webmanifest`, `offline.html` i `icons/` muszą być serwowane jako rzeczywiste pliki,
 bez przekierowania do `index.html`. Dla `sw.js` zalecany jest `Cache-Control: no-cache`.
 Obecna konfiguracja zakłada wdrożenie w katalogu głównym domeny.
