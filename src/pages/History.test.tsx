@@ -4,12 +4,14 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
 import type { TrainingSession } from '@/types';
+import { deleteSessions } from '@/store/db';
 import History from './History';
 
 const mocks = vi.hoisted(() => ({ query: vi.fn() }));
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: mocks.query }));
 vi.mock('@/components/CalibrationPrompt', () => ({ CalibrationPrompt: () => null }));
+vi.mock('@/store/db', () => ({ deleteSessions: vi.fn(), deleteSession: vi.fn() }));
 
 function session(i: number): TrainingSession {
   return {
@@ -46,11 +48,18 @@ describe('history tab', () => {
       }
       expect(host.querySelector('a[href="/session/s50"]')).not.toBeNull();
       expect(host.querySelector('button[aria-label^="Usuń sesję:"]')).not.toBeNull();
+      const deleteAll = Array.from(host.querySelectorAll('button')).find((button) => button.textContent?.includes('Usuń wszystkie sesje'))!;
+      await act(async () => deleteAll.click());
+      expect(deleteSessions).not.toHaveBeenCalled();
+      const confirm = Array.from(document.querySelectorAll('[role="alertdialog"] button')).find((button) => button.textContent === 'Usuń wszystkie sesje') as HTMLButtonElement;
+      await act(async () => confirm.click());
+      expect(deleteSessions).toHaveBeenCalledExactlyOnceWith(undefined);
       items = [];
       await act(async () => root.render(<MemoryRouter><History /></MemoryRouter>));
       expect(host.textContent).toContain('0 sesji');
       expect(host.textContent).toContain('Brak sesji.');
       expect(host.querySelector('nav')).toBeNull();
+      expect(deleteAll.disabled).toBe(true);
     } finally {
       await act(async () => root.unmount());
       host.remove();

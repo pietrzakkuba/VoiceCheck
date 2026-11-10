@@ -73,20 +73,20 @@ export default function Calibration() {
   };
 
   return (
-    <div className={cn('space-y-5', active && 'recording-active')}>
-      <div>
+    <div className={cn('calibration-view space-y-5', active && 'recording-active calibration-active')}>
+      <div className="calibration-intro">
         {!active && (
           <Button asChild variant="ghost" size="sm" className="-ml-3 h-9 text-muted-foreground">
             <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
           </Button>
         )}
         <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><Crosshair className="size-6 text-primary" aria-hidden /> Kalibracja</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <p className="calibration-intro-text text-muted-foreground text-sm mt-1">
           Około minuty czytania. Znamy liczbę sylab w tym tekście, więc po nagraniu dopasujemy pomiar tempa do Twojego głosu i mikrofonu.
         </p>
       </div>
       {!active && !result && (
-        <Card>
+        <Card className="calibration-instructions">
           <CardHeader>
             <CardTitle>Jak to zrobić?</CardTitle>
             <CardDescription>Usiądź w cichym miejscu, w zwykłej odległości od mikrofonu.</CardDescription>
@@ -101,13 +101,17 @@ export default function Calibration() {
         </Card>
       )}
       {(active || !result) && (
-        <Card>
-          <CardContent>
+        <Card className="calibration-text-card">
+          <CardContent className="calibration-text" tabIndex={0} role="region" aria-label="Tekst kalibracyjny">
             <TargetText tokens={tokens} />
           </CardContent>
         </Card>
       )}
-      <SessionErrors error={ts.error} deviceWarning={ts.deviceWarning} />
+      {(ts.error || ts.deviceWarning) && (
+        <div className="calibration-errors">
+          <SessionErrors error={ts.error} deviceWarning={ts.deviceWarning} />
+        </div>
+      )}
       {result && (
         <Alert variant={result.ok ? 'ok' : 'warn'}>
           {result.ok ? <CheckCircle2 className="size-4 mt-0.5" aria-hidden /> : <AlertTriangle className="size-4 mt-0.5" aria-hidden />}
@@ -121,8 +125,16 @@ export default function Calibration() {
           </div>
         </Alert>
       )}
-      {!result && <RecordControls phase={ts.phase} onStart={start} onStop={stop} startLabel="Start" />}
-      {active && <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} />}
+      {!result && (
+        <div className="calibration-controls">
+          <RecordControls phase={ts.phase} onStart={start} onStop={stop} startLabel="Start" />
+        </div>
+      )}
+      {active && (
+        <div className="calibration-hud">
+          <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} />
+        </div>
+      )}
     </div>
   );
 }

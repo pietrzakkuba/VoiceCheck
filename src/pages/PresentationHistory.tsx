@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, History, Loader2, Mic } from 'lucide-react';
 import { SessionList } from '@/components/SessionList';
+import { DeleteSessionsButton } from '@/components/DeleteSessionsButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert } from '@/components/ui/primitives';
@@ -43,7 +44,10 @@ export default function PresentationHistory() {
           <h1 className="text-2xl font-semibold flex items-center gap-2"><History className="size-6 shrink-0 text-primary" aria-hidden /> Historia prezentacji</h1>
           <p className="text-muted-foreground mt-1 break-words">{presentation.title}</p>
         </div>
-        <Button asChild><Link to={`/presentations/${presentation.id}/rehearse?start=1`}><Mic className="size-4" aria-hidden /> Prezentuj</Link></Button>
+        <div className="flex flex-wrap gap-2">
+          <DeleteSessionsButton presentationId={presentation.id} disabled={sessions.length === 0} />
+          <Button asChild><Link to={`/presentations/${presentation.id}/rehearse?start=1`}><Mic className="size-4" aria-hidden /> Prezentuj</Link></Button>
+        </div>
       </div>
       <Card>
         <CardHeader>

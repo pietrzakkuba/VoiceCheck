@@ -33,6 +33,8 @@ const mocks = vi.hoisted(() => ({
   maxBreathSeconds: 8,
   setSettings: vi.fn(),
   toggleScroll: undefined as ((checked: boolean) => void) | undefined,
+  keepAwake: true,
+  toggleKeepAwake: undefined as ((checked: boolean) => void) | undefined,
   readingProps: undefined as { autoScroll: boolean; syllablesRead: number | null; onAutoScrollChange: (enabled: boolean) => void } | undefined,
 }));
 
@@ -41,7 +43,7 @@ vi.mock('@/store/settings', async (importOriginal) => {
   return {
     ...actual,
     useSettings: (selector: (settings: SettingsState) => unknown) => selector({
-      ...actual.useSettings.getState(), readingAutoScroll: mocks.autoScroll, maxContinuousSpeechSeconds: mocks.maxBreathSeconds, set: mocks.setSettings,
+      ...actual.useSettings.getState(), readingAutoScroll: mocks.autoScroll, keepScreenAwake: mocks.keepAwake, maxContinuousSpeechSeconds: mocks.maxBreathSeconds, set: mocks.setSettings,
     }),
   };
 });
@@ -50,7 +52,8 @@ vi.mock('@/components/ui/primitives', async (importOriginal) => {
   return {
     ...actual,
     Switch: (props: React.ComponentProps<typeof actual.Switch>) => {
-      mocks.toggleScroll = props.onCheckedChange;
+      if (props.id === 'reading-auto-scroll') mocks.toggleScroll = props.onCheckedChange;
+      if (props.id === 'keep-screen-awake') mocks.toggleKeepAwake = props.onCheckedChange;
       return <actual.Switch {...props} />;
     },
   };
@@ -129,10 +132,13 @@ describe('presentation rehearsal', () => {
     mocks.autoScroll = DEFAULT_SETTINGS.readingAutoScroll;
     mocks.maxBreathSeconds = DEFAULT_SETTINGS.maxContinuousSpeechSeconds;
     mocks.toggleScroll = undefined;
+    mocks.keepAwake = DEFAULT_SETTINGS.keepScreenAwake;
+    mocks.toggleKeepAwake = undefined;
     mocks.readingProps = undefined;
     mocks.setSettings.mockReset();
-    mocks.setSettings.mockImplementation(({ readingAutoScroll }: { readingAutoScroll: boolean }) => {
-      mocks.autoScroll = readingAutoScroll;
+    mocks.setSettings.mockImplementation((patch: { readingAutoScroll?: boolean; keepScreenAwake?: boolean }) => {
+      if (patch.readingAutoScroll !== undefined) mocks.autoScroll = patch.readingAutoScroll;
+      if (patch.keepScreenAwake !== undefined) mocks.keepAwake = patch.keepScreenAwake;
     });
   });
 
@@ -335,6 +341,75 @@ describe('presentation rehearsal', () => {
     expect(mocks.readingProps?.autoScroll).toBe(false);
     expect(html).not.toContain('Śledzenie wstrzymane');
     expect(html).not.toContain('Wznów śledzenie');
+  });
+
+  describe('keeping the screen awake', () => {
+    function installWakeLock() {
+      const sentinels: { released: boolean; release: ReturnType<typeof vi.fn>; addEventListener: ReturnType<typeof vi.fn> }[] = [];
+      const request = vi.fn(async () => {
+        const sentinel = {
+          released: false,
+          release: vi.fn(async () => { sentinel.released = true; }),
+          addEventListener: vi.fn(),
+        };
+        sentinels.push(sentinel);
+        return sentinel;
+      });
+      Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true });
+      return { request, sentinels };
+    }
+
+    afterEach(() => {
+      delete (navigator as { wakeLock?: unknown }).wakeLock;
+    });
+
+    it('holds a screen wake lock only while presenting and releases it afterwards', async () => {
+      const { request, sentinels } = installWakeLock();
+      await renderPage();
+      expect(request).not.toHaveBeenCalled();
+      mocks.phase = 'recording';
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(request).toHaveBeenCalledWith('screen');
+      const active = sentinels.filter((s) => !s.released);
+      expect(active).toHaveLength(1);
+      mocks.phase = 'idle';
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(sentinels.every((s) => s.released)).toBe(true);
+    });
+
+    it('lets the user turn the option off, which releases the lock and is remembered', async () => {
+      const { request, sentinels } = installWakeLock();
+      mocks.phase = 'recording';
+      const host = await renderPage();
+      expect(host.querySelector('#keep-screen-awake')?.getAttribute('aria-checked')).toBe('true');
+      expect(sentinels.some((s) => !s.released)).toBe(true);
+      await act(async () => mocks.toggleKeepAwake!(false));
+      expect(mocks.setSettings).toHaveBeenCalledWith({ keepScreenAwake: false });
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(host.querySelector('#keep-screen-awake')?.getAttribute('aria-checked')).toBe('false');
+      expect(sentinels.every((s) => s.released)).toBe(true);
+      const calls = request.mock.calls.length;
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(request).toHaveBeenCalledTimes(calls);
+    });
+
+    it('re-acquires the lock when the page becomes visible again', async () => {
+      const { request, sentinels } = installWakeLock();
+      mocks.phase = 'recording';
+      await renderPage();
+      sentinels.forEach((s) => { s.released = true; });
+      const calls = request.mock.calls.length;
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+      expect(request).toHaveBeenCalledTimes(calls + 1);
+    });
+
+    it('disables the option when the browser does not support it', async () => {
+      mocks.phase = 'recording';
+      const host = await renderPage();
+      const toggle = host.querySelector<HTMLButtonElement>('#keep-screen-awake')!;
+      expect(toggle.disabled).toBe(true);
+      expect(host.textContent).toContain('nie obsługuje blokady wygaszania ekranu');
+    });
   });
 
   it('shows a message when the presentation does not exist', () => {

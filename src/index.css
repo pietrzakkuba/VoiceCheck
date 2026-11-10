@@ -288,3 +288,151 @@
     padding-block: 0.5rem;
   }
 }
+
+/* Calibration: fit the whole view into a phone screen without page scrolling. */
+@media (width < 48rem) {
+  body:has(.calibration-view) footer {
+    display: none;
+  }
+  body:has(.calibration-view) .app-column {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+  }
+  body:has(.calibration-view) main {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    overflow-y: auto;
+    padding-block: 0.75rem;
+  }
+  body:has(.calibration-view) main > * {
+    flex-shrink: 0;
+  }
+  body:has(.calibration-view) main > .calibration-view {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .calibration-view > * {
+    margin-block: 0;
+    flex-shrink: 0;
+  }
+  .calibration-view h1 {
+    margin-top: 0;
+    font-size: 1.25rem;
+  }
+  .calibration-view .calibration-intro > a {
+    height: 2rem;
+  }
+  .calibration-view .calibration-intro-text {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+  .calibration-view .calibration-instructions {
+    gap: 0.5rem;
+    padding-block: 0.75rem;
+  }
+  .calibration-view .calibration-instructions > * {
+    padding-inline: 0.875rem;
+  }
+  .calibration-view .calibration-instructions h3 {
+    display: none;
+  }
+  .calibration-view .calibration-instructions ol {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+  .calibration-view .calibration-text-card {
+    min-height: 5rem;
+    flex: 1 1 auto;
+    padding-block: 0.75rem;
+  }
+  .calibration-view .calibration-text {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline: 0.875rem;
+  }
+  .calibration-view .calibration-text > p {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  .calibration-view .calibration-errors {
+    max-height: 18dvh;
+    overflow-y: auto;
+  }
+}
+
+@media (width < 48rem), (height < 32rem) and (pointer: coarse) {
+  body:has(.calibration-active) {
+    overflow: hidden;
+  }
+  .calibration-view.calibration-active {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    background: var(--background);
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
+      max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+  }
+  .calibration-active > * {
+    margin-block: 0;
+    flex-shrink: 0;
+  }
+  .calibration-active .calibration-intro-text {
+    display: none;
+  }
+  .calibration-active h1 {
+    margin-top: 0;
+    font-size: 1.125rem;
+  }
+  .calibration-active h1 svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .calibration-active .calibration-text-card {
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: 0;
+    padding-block: 0.5rem;
+  }
+  .calibration-active .calibration-text {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline: 0.75rem;
+  }
+  /* Scale the text with the viewport so the whole passage fits without scrolling. */
+  .calibration-active .calibration-text > p {
+    font-size: clamp(0.75rem, min(2.25dvh, 4.4vw), 1.25rem);
+    line-height: 1.45;
+  }
+  .calibration-active .calibration-hud > * {
+    gap: 0;
+    padding-block: 0.5rem;
+  }
+  .calibration-active .calibration-hud > * > * {
+    padding-inline: 0.75rem;
+  }
+  .calibration-active .calibration-hud .live-hud-breath,
+  .calibration-active .calibration-hud canvas {
+    display: none;
+  }
+  .calibration-active .calibration-errors {
+    max-height: 18dvh;
+    overflow-y: auto;
+  }
+}

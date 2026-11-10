@@ -10,6 +10,7 @@ import { LivePacePanel, liveIndicators } from '@/components/audio/LivePacePanel'
 import { RehearsalText } from '@/components/RehearsalText';
 import { PresentationContent } from '@/components/PresentationContent';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import { getPresentation } from '@/store/db';
 import { useSettings } from '@/store/settings';
 import { formatDuration, textStats } from '@/lib/presentation';
@@ -25,10 +26,13 @@ export default function PresentationRehearsal() {
   const autoScroll = useSettings((s) => s.readingAutoScroll);
   const setSettings = useSettings((s) => s.set);
   const setAutoScroll = useCallback((readingAutoScroll: boolean) => setSettings({ readingAutoScroll }), [setSettings]);
+  const keepAwake = useSettings((s) => s.keepScreenAwake);
+  const setKeepAwake = useCallback((keepScreenAwake: boolean) => setSettings({ keepScreenAwake }), [setSettings]);
   const ts = useTrainingSession();
   const nav = useNavigate();
   const stats = useMemo(() => textStats(text, target), [text, target]);
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
+  const wakeLockStatus = useWakeLock(active && keepAwake);
   const { frameColor } = liveIndicators(ts.phase, ts.stats, target);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -102,14 +106,35 @@ export default function PresentationRehearsal() {
         </p>
       </div>
 
-      <div className="rehearsal-settings flex items-center justify-between gap-4">
-        <div>
-          <Label htmlFor="reading-auto-scroll">Automatyczne przewijanie tekstu</Label>
-          <p id="reading-auto-scroll-description" className="text-xs text-muted-foreground">
-            Szacuje postęp na podstawie wykrytych sylab. Zatrzymuje się podczas ciszy.
-          </p>
+      <div className="rehearsal-settings flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div className="flex min-w-60 flex-1 items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="reading-auto-scroll">Automatyczne przewijanie tekstu</Label>
+            <p id="reading-auto-scroll-description" className="text-xs text-muted-foreground">
+              Szacuje postęp na podstawie wykrytych sylab. Zatrzymuje się podczas ciszy.
+            </p>
+          </div>
+          <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
         </div>
-        <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
+        <div className="flex min-w-60 flex-1 items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="keep-screen-awake">Nie wygaszaj ekranu</Label>
+            <p id="keep-screen-awake-description" className="text-xs text-muted-foreground">
+              {wakeLockStatus === 'unsupported'
+                ? 'Ta przeglądarka nie obsługuje blokady wygaszania ekranu.'
+                : wakeLockStatus === 'error'
+                  ? 'Nie udało się zablokować wygaszania ekranu (np. tryb oszczędzania baterii).'
+                  : 'Ekran pozostaje włączony podczas prezentowania.'}
+            </p>
+          </div>
+          <Switch
+            id="keep-screen-awake"
+            checked={keepAwake && wakeLockStatus !== 'unsupported'}
+            onCheckedChange={setKeepAwake}
+            disabled={wakeLockStatus === 'unsupported'}
+            aria-describedby="keep-screen-awake-description"
+          />
+        </div>
       </div>
 
       {!active && (

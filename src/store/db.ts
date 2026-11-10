@@ -87,6 +87,20 @@ export async function deleteSession(id: string) {
   });
 }
 
+/** Deletes all sessions and recordings, or only those belonging to one presentation. */
+export async function deleteSessions(presentationId?: string) {
+  await db.transaction('rw', db.sessions, db.audio, async () => {
+    if (presentationId === undefined) {
+      await db.sessions.clear();
+      await db.audio.clear();
+    } else {
+      const sessions = await db.sessions.where({ presentationId }).toArray();
+      await db.sessions.bulkDelete(sessions.map((s) => s.id));
+      await db.audio.bulkDelete(sessions.map((s) => s.audioKey));
+    }
+  });
+}
+
 export async function clearAllData() {
   await db.transaction('rw', [db.sessions, db.audio, db.baseline, db.presentations], async () => {
     await db.sessions.clear();

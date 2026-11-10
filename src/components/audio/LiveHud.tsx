@@ -27,7 +27,7 @@ export function LiveHud({ stats, getDb, getSpeaking, showBreath = true, compactM
         </Alert>
       )}
         <div className={compactMobile ? 'live-hud-compact-mobile-details space-y-3' : 'space-y-3'}>
-          {showBreath && <BreathBar runMs={stats?.breathRunMs ?? 0} maxMs={s.maxContinuousSpeechSeconds * 1000} state={stats?.breathState ?? 'ok'} />}
+          {showBreath && <BreathBar className="live-hud-breath" runMs={stats?.breathRunMs ?? 0} maxMs={s.maxContinuousSpeechSeconds * 1000} state={stats?.breathState ?? 'ok'} />}
           <WaveformCanvas getDb={getDb} getSpeaking={getSpeaking} />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
             <span>Czas: {formatMs(stats?.elapsedMs ?? 0)}</span>

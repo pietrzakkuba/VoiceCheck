@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { db, deleteSession, listSessions } from './db';
+import { db, deleteSession, deleteSessions, listSessions } from './db';
 
 vi.mock('dexie', () => ({
   default: class {
     sessions = {
       get: vi.fn(),
       delete: vi.fn(),
+      clear: vi.fn(),
+      bulkDelete: vi.fn(),
       toCollection: () => ({
         reverse() { return this; },
         sortBy: vi.fn(),
@@ -14,7 +16,7 @@ vi.mock('dexie', () => ({
       where: vi.fn(),
       orderBy: vi.fn(),
     };
-    audio = { delete: vi.fn() };
+    audio = { delete: vi.fn(), clear: vi.fn(), bulkDelete: vi.fn() };
     transaction = vi.fn(async (_mode, _sessions, _audio, action: () => Promise<void>) => action());
     version() { return { stores: vi.fn() }; }
   },
@@ -36,6 +38,42 @@ describe('session history queries', () => {
   });
 
   describe('session deletion', () => {
+    it('clears all sessions and recordings in one transaction without touching presentations or baseline', async () => {
+      const clearSessions = vi.spyOn(db.sessions, 'clear').mockResolvedValue(undefined);
+      const clearAudio = vi.spyOn(db.audio, 'clear').mockResolvedValue(undefined);
+      const where = vi.spyOn(db.sessions, 'where');
+      await deleteSessions();
+      expect(db.transaction).toHaveBeenCalledWith('rw', db.sessions, db.audio, expect.any(Function));
+      expect(clearSessions).toHaveBeenCalledOnce();
+      expect(clearAudio).toHaveBeenCalledOnce();
+      expect(where).not.toHaveBeenCalled();
+    });
+
+    it('deletes every session and recording of the requested presentation, without a schema or page filter', async () => {
+      const collection = db.sessions.toCollection();
+      const where = vi.spyOn(db.sessions, 'where').mockReturnValue(collection);
+      vi.spyOn(collection, 'toArray').mockResolvedValue([
+        { id: 's1', audioKey: 'audio-s1', schema: 2 },
+        { id: 'legacy', audioKey: 'audio-legacy', schema: 1 },
+      ] as Awaited<ReturnType<typeof collection.toArray>>);
+      const removeSessions = vi.spyOn(db.sessions, 'bulkDelete').mockResolvedValue(undefined);
+      const removeAudio = vi.spyOn(db.audio, 'bulkDelete').mockResolvedValue(undefined);
+      const clearSessions = vi.spyOn(db.sessions, 'clear');
+      const clearAudio = vi.spyOn(db.audio, 'clear');
+      await deleteSessions('p1');
+      expect(db.transaction).toHaveBeenCalledWith('rw', db.sessions, db.audio, expect.any(Function));
+      expect(where).toHaveBeenCalledExactlyOnceWith({ presentationId: 'p1' });
+      expect(removeSessions).toHaveBeenCalledExactlyOnceWith(['s1', 'legacy']);
+      expect(removeAudio).toHaveBeenCalledExactlyOnceWith(['audio-s1', 'audio-legacy']);
+      expect(clearSessions).not.toHaveBeenCalled();
+      expect(clearAudio).not.toHaveBeenCalled();
+    });
+
+    it('propagates bulk deletion errors', async () => {
+      vi.spyOn(db.sessions, 'clear').mockRejectedValue(new Error('Storage unavailable'));
+      await expect(deleteSessions()).rejects.toThrow('Storage unavailable');
+    });
+
     it('deletes the session and its audio in one transaction without touching other data', async () => {
       vi.spyOn(db.sessions, 'get').mockResolvedValue({ audioKey: 'audio-s1' } as Awaited<ReturnType<typeof db.sessions.get>>);
       const removeSession = vi.spyOn(db.sessions, 'delete').mockResolvedValue(undefined);

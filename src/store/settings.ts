@@ -10,6 +10,8 @@ export interface SettingsState extends AppSettings {
   syllablesPerWord: number;
   micDeviceId: string | null;
   readingAutoScroll: boolean;
+  /** Keep the screen on (Screen Wake Lock) while presenting. */
+  keepScreenAwake: boolean;
   set: (patch: Partial<SettingsState>) => void;
   reset: () => void;
 }
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: PersistedSettings = {
   syllablesPerWord: 2.3,
   micDeviceId: null,
   readingAutoScroll: true,
+  keepScreenAwake: true,
 };
 
 const KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof PersistedSettings)[];

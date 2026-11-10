@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { History as HistoryIcon, Loader2 } from 'lucide-react';
 import { CalibrationPrompt } from '@/components/CalibrationPrompt';
+import { DeleteSessionsButton } from '@/components/DeleteSessionsButton';
 import { SessionList } from '@/components/SessionList';
 import { Alert } from '@/components/ui/primitives';
 import { db, getBaseline } from '@/store/db';
@@ -18,14 +19,17 @@ export default function History() {
   return (
     <div className="space-y-6">
       <CalibrationPrompt />
-      <div>
-        <h1 className="text-2xl font-semibold flex items-center gap-2"><HistoryIcon className="size-6 text-primary" aria-hidden /> Historia sesji</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Wszystkie Twoje nagrane próby z wynikami tempa i oddechu – otwórz sesję, by zobaczyć szczegóły i porównać postępy.
-        </p>
-        <p className="text-muted-foreground text-xs mt-1">
-          {sessions.length} sesji{baseline ? ` · kalibracja z ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')}` : ''}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2"><HistoryIcon className="size-6 text-primary" aria-hidden /> Historia sesji</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Wszystkie Twoje nagrane próby z wynikami tempa i oddechu – otwórz sesję, by zobaczyć szczegóły i porównać postępy.
+          </p>
+          <p className="text-muted-foreground text-xs mt-1">
+            {sessions.length} sesji{baseline ? ` · kalibracja z ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')}` : ''}
+          </p>
+        </div>
+        <DeleteSessionsButton disabled={all.length === 0} />
       </div>
 
       {migrating > 0 && (

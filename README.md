@@ -32,6 +32,9 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   tę funkcję; wybór jest zapamiętywany. Nie jest to rozpoznawanie wypowiadanych słów.
   Ręczne przewinięcie wyłącza automatyczne przewijanie i jego przełącznik. Ponowne włączenie
   przełącznika przywraca przewijanie do aktualnej szacowanej pozycji czytania.
+  Przełącznik „Nie wygaszaj ekranu” (domyślnie włączony, zapamiętywany) utrzymuje ekran włączony
+  podczas prezentowania dzięki Screen Wake Lock API; blokada jest zwalniana po zakończeniu próby
+  i odnawiana po powrocie do karty. W przeglądarkach bez obsługi tego API przełącznik jest nieaktywny.
   Szacowany czas czytania jest widoczny w bibliotece, edytorze oraz przed próbą i podczas nagrania.
   Licznik przy tekście i w raporcie pokazuje czas całej sesji (z pauzami i kalibracją mikrofonu),
   bez odliczania i ostrzeżeń o przekroczeniu czasu. Dawne ręczne limity są ignorowane.
@@ -70,6 +73,8 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   od najnowszej. Przyciski „Poprzednia” i „Następna” pozwalają przeglądać całą historię.
   Kosz przy sesji pozwala trwale usunąć ją wraz z nagraniem po potwierdzeniu, bez usuwania prezentacji
   ani zapisanej kalibracji.
+  Przycisk „Usuń wszystkie sesje” wymaga potwierdzenia i usuwa też nagrania: w zakładce „Historia”
+  całą historię, a w historii prezentacji tylko sesje tej prezentacji. Prezentacje i kalibracja pozostają.
 
 ## Jak to działa
 

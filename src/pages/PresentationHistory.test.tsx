@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import { getPresentation, listSessions } from '@/store/db';
+import { deleteSessions, getPresentation, listSessions } from '@/store/db';
 import type { Presentation, TrainingSession } from '@/types';
 import PresentationHistory from './PresentationHistory';
 import { PresentationList } from '@/components/PresentationList';
@@ -44,6 +44,7 @@ vi.mock('@/store/db', () => ({
   listSessions: vi.fn(),
   listPresentations: vi.fn(),
   deleteSession: vi.fn(),
+  deleteSessions: vi.fn(),
 }));
 
 vi.mock('react-router', async (importOriginal) => ({
@@ -58,6 +59,7 @@ function renderHistory() {
 describe('presentation history', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(deleteSessions).mockReset().mockResolvedValue(undefined);
     mocks.data = { presentation, sessions: [] };
     mocks.id = 'p1';
     mocks.query = undefined;
@@ -148,6 +150,13 @@ describe('presentation history', () => {
       }
       expect(host.querySelector('a[href="/session/s50"]')).not.toBeNull();
       expect(host.textContent).toContain('Strona 6 z 6');
+      const deleteAll = Array.from(host.querySelectorAll('button')).find((button) => button.textContent?.includes('Usuń wszystkie sesje'))!;
+      await act(async () => deleteAll.click());
+      expect(deleteSessions).not.toHaveBeenCalled();
+      expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Wszystkie sesje tej prezentacji');
+      const confirm = Array.from(document.querySelectorAll('[role="alertdialog"] button')).find((button) => button.textContent === 'Usuń wszystkie sesje') as HTMLButtonElement;
+      await act(async () => confirm.click());
+      expect(deleteSessions).toHaveBeenCalledExactlyOnceWith('p1');
       mocks.id = 'p2';
       mocks.data = { presentation: { ...presentation, id: 'p2' }, sessions: Array.from({ length: 11 }, (_, i) => session(`other${i}`)) };
       await render();
@@ -157,6 +166,7 @@ describe('presentation history', () => {
       await render();
       expect(host.textContent).toContain('Brak sesji tej prezentacji');
       expect(host.querySelector('nav')).toBeNull();
+      expect(Array.from(host.querySelectorAll('button')).find((button) => button.textContent?.includes('Usuń wszystkie sesje'))?.disabled).toBe(true);
     } finally {
       await act(async () => root.unmount());
       host.remove();
