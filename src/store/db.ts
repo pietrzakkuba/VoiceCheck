@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Presentation, TrainingSession, UserBaseline } from '@/types';
+import type { Lang } from '@/i18n/lang';
 
 export interface AudioRecord {
   key: string;
@@ -9,7 +10,8 @@ export interface AudioRecord {
 }
 
 export interface BaselineRecord extends UserBaseline {
-  id: 'current';
+  /** Speech language of the calibration ('current' before English support). */
+  id: Lang;
 }
 
 export const db = new Dexie('clearvoice') as Dexie & {
@@ -36,6 +38,15 @@ db.version(3).stores({
   presentations: 'id, updatedAt',
 });
 
+// v4: one calibration per speech language; the single earlier calibration was Polish.
+db.version(4).stores({}).upgrade(async (tx) => {
+  const baseline = tx.table('baseline');
+  const legacy = await baseline.get('current');
+  if (!legacy) return;
+  await baseline.delete('current');
+  await baseline.put({ ...legacy, id: 'pl', language: 'pl' });
+});
+
 /** Presentations, most recently edited first. */
 export async function listPresentations(): Promise<Presentation[]> {
   return db.presentations.orderBy('updatedAt').reverse().toArray();
@@ -54,12 +65,12 @@ export async function deletePresentation(id: string) {
   await db.presentations.delete(id);
 }
 
-export async function getBaseline(): Promise<UserBaseline | null> {
-  return (await db.baseline.get('current')) ?? null;
+export async function getBaseline(lang: Lang): Promise<UserBaseline | null> {
+  return (await db.baseline.get(lang)) ?? null;
 }
 
-export async function saveBaseline(b: UserBaseline) {
-  await db.baseline.put({ ...b, id: 'current' });
+export async function saveBaseline(lang: Lang, b: UserBaseline) {
+  await db.baseline.put({ ...b, language: lang, id: lang });
 }
 
 export async function saveSession(session: TrainingSession, audio?: Blob) {

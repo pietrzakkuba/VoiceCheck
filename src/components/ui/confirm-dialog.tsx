@@ -3,6 +3,7 @@ import { AlertDialog } from 'radix-ui';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/primitives';
+import { useT } from '@/i18n';
 
 interface ConfirmDialogProps {
   children: ReactElement;
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const running = useRef(false);
+  const t = useT().ui;
 
   const handleConfirm = async () => {
     if (running.current) return;
@@ -59,7 +61,7 @@ export function ConfirmDialog({
           {error && <Alert variant="bad">{error}</Alert>}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <AlertDialog.Cancel asChild>
-              <Button variant="outline" disabled={pending}>Anuluj</Button>
+              <Button variant="outline" disabled={pending}>{t.cancel}</Button>
             </AlertDialog.Cancel>
             <Button
               variant={destructive ? 'destructive' : 'default'}
@@ -67,7 +69,7 @@ export function ConfirmDialog({
               onClick={() => void handleConfirm()}
             >
               {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
-              {pending ? 'Wykonywanie…' : confirmLabel}
+              {pending ? t.pending : confirmLabel}
             </Button>
           </div>
         </AlertDialog.Content>

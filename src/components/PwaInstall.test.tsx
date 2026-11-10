@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PwaInstall } from './PwaInstall';
 import { PwaStatus } from './PwaStatus';
 import { usePwa } from '@/lib/pwa';
+import { useSettings } from '@/store/settings';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -12,6 +13,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  useSettings.setState({ appLanguage: 'pl' });
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
@@ -21,7 +23,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   usePwa.setState({
-    installed: false, canInstall: false, offline: false, updateAvailable: false, error: null,
+    installed: false, canInstall: false, offline: false, offlineReady: false, updateAvailable: false, error: null,
   });
 });
 
@@ -60,5 +62,16 @@ describe('PWA interface', () => {
     expect(html).toContain('role="status"');
     expect(html).toContain('Możesz zakończyć rozpoczętą sesję');
     expect(html).toContain('Aktualizuj');
+  });
+
+  it('does not warn about lost connection once the app works fully offline', async () => {
+    usePwa.setState({ offline: true, offlineReady: true });
+    expect(await render(<PwaStatus />)).toBe('');
+  });
+
+  it('reports offline readiness in settings', async () => {
+    expect(await render(<PwaInstall />)).toContain('Przygotowywanie pracy offline');
+    await act(async () => usePwa.setState({ offlineReady: true }));
+    expect(host.innerHTML).toContain('Gotowa do pracy offline');
   });
 });

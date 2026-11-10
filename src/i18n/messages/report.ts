@@ -1,0 +1,211 @@
+import type { TipKey } from '@/types';
+import { formatMs } from '@/lib/utils';
+import { enPlural, plPlural } from '../lang';
+
+type TipParams = Record<string, number>;
+type TipText = { title: (p: TipParams) => string; detail: (p: TipParams) => string };
+
+const plRate = (v: number) => v.toFixed(1).replace('.', ',');
+const enRate = (v: number) => v.toFixed(1);
+
+const plTips: Record<TipKey, TipText> = {
+  no_speech: {
+    title: () => 'Za mało mowy do analizy',
+    detail: () => 'Nagranie jest bardzo krótkie lub ciche. Mów przez co najmniej kilkanaście sekund.',
+  },
+  breath_limit: {
+    title: (p) => `Za długo bez oddechu: ${p.count}×`,
+    detail: (p) => `Najdłuższy fragment trwał ${formatMs(p.longestMs)} (limit ${p.limitS} s). Zrób krótki wdech na przecinku lub końcu zdania.`,
+  },
+  too_fast: {
+    title: () => 'Mówisz za szybko',
+    detail: (p) => `Średnio ${plRate(p.rate)} sylaby/s, cel ${plRate(p.lo)}–${plRate(p.hi)}. Zwolnij i rób więcej krótkich pauz.`,
+  },
+  too_slow: {
+    title: () => 'Bardzo wolne tempo',
+    detail: (p) => `Średnio ${plRate(p.rate)} sylaby/s, cel ${plRate(p.lo)}–${plRate(p.hi)}. Możesz mówić odrobinę płynniej.`,
+  },
+  speeding_up: {
+    title: () => 'Zdarza Ci się przyspieszać',
+    detail: (p) => `${p.fast} z ${p.rated} fraz powyżej ${plRate(p.hi)} sylaby/s. Zaznaczone na osi czasu na pomarańczowo.`,
+  },
+  noise: {
+    title: () => 'Głośne otoczenie',
+    detail: () => 'Szum tła utrudnia pomiar — wyniki mogą być mniej dokładne. Nagrywaj w cichszym miejscu lub bliżej mikrofonu.',
+  },
+  all_ok: {
+    title: () => 'Dobre tempo i regularne oddechy',
+    detail: () => 'Tak trzymaj! Spróbuj dłuższego nagrania albo trudniejszego tekstu.',
+  },
+};
+
+const enTips: Record<TipKey, TipText> = {
+  no_speech: {
+    title: () => 'Not enough speech to analyse',
+    detail: () => 'The recording is very short or quiet. Speak for at least 15 seconds or so.',
+  },
+  breath_limit: {
+    title: (p) => `Too long without a breath: ${p.count}×`,
+    detail: (p) => `The longest stretch lasted ${formatMs(p.longestMs)} (limit ${p.limitS} s). Take a short breath at a comma or the end of a sentence.`,
+  },
+  too_fast: {
+    title: () => 'You are speaking too fast',
+    detail: (p) => `On average ${enRate(p.rate)} syllables/s, target ${enRate(p.lo)}–${enRate(p.hi)}. Slow down and take more short pauses.`,
+  },
+  too_slow: {
+    title: () => 'Very slow pace',
+    detail: (p) => `On average ${enRate(p.rate)} syllables/s, target ${enRate(p.lo)}–${enRate(p.hi)}. You can speak a little more fluently.`,
+  },
+  speeding_up: {
+    title: () => 'You tend to speed up',
+    detail: (p) => `${p.fast} of ${p.rated} phrases above ${enRate(p.hi)} syllables/s. Marked in orange on the timeline.`,
+  },
+  noise: {
+    title: () => 'Noisy surroundings',
+    detail: () => 'Background noise makes measurement harder — results may be less accurate. Record somewhere quieter or closer to the microphone.',
+  },
+  all_ok: {
+    title: () => 'Good pace and regular breathing',
+    detail: () => 'Keep it up! Try a longer recording or a more difficult text.',
+  },
+};
+
+export const pl = {
+  timeline: {
+    label: 'Oś czasu nagrania: przebieg, frazy między oddechami i tempo każdej frazy',
+    pause: (long: boolean, seconds: string) => `${long ? 'Długa pauza' : 'Oddech'} ${seconds} s`,
+    phraseBreath: (n: number, seconds: string, over: boolean) => `Fraza ${n}: ${seconds} s bez oddechu${over ? ' — za długo!' : ''}`,
+    phraseRate: (n: number, rate: string, short: boolean) => `Fraza ${n}: ${rate} syl/s${short ? ' (za krótka do pewnego pomiaru)' : ''}`,
+    legendOk: 'fraza w limicie oddechu',
+    legendWarn: 'blisko limitu',
+    legendBad: 'za długo bez oddechu / za szybko',
+    legendBreath: 'oddech (pauza)',
+    legendTarget: (lo: string, hi: string) => `docelowe tempo ${lo}–${hi} syl/s`,
+  },
+  tempo: {
+    short: 'krótka',
+    slow: 'wolno',
+    ok: 'dobrze',
+    fast: 'szybko',
+    too_fast: 'za szybko',
+  },
+  loading: 'Wczytywanie…',
+  notFound: 'Nie znaleziono sesji.',
+  backToHistory: 'Wróć do historii',
+  migrating: 'Ta sesja pochodzi z poprzedniej wersji aplikacji i jest właśnie przeliczana…',
+  history: 'Historia',
+  title: (presentation?: string) => `Raport sesji${presentation ? `: ${presentation}` : ''}`,
+  microphone: (device: string) => `mikrofon: ${device}`,
+  unknownDevice: 'nieznany',
+  presentationHistory: 'Historia prezentacji',
+  presentAgain: 'Prezentuj ponownie',
+  practiceAgain: 'Ćwicz ponownie',
+  deleteTitle: 'Usunąć sesję?',
+  deleteDescription: 'Ta sesja i jej nagranie zostaną usunięte. Tej operacji nie można cofnąć.',
+  deleteConfirm: 'Usuń sesję',
+  deleteError: 'Nie udało się usunąć sesji. Spróbuj ponownie.',
+  stale: 'Od czasu tej sesji zmieniły się ustawienia lub kalibracja.',
+  recompute: 'Przelicz z bieżącymi ustawieniami',
+  noAudio: 'Nagranie tej sesji nie jest dostępne – odtwarzanie wyłączone.',
+  readingTime: 'Szacowany czas czytania',
+  readingTimeValue: (v: string) => `ok. ${v}`,
+  readingTimeHint: 'W tempie docelowym zapisanym w sesji, z uwzględnieniem pauz',
+  pace: 'Tempo mowy',
+  paceSub: (lo: string, hi: string, wpm: number) => `cel ${lo}–${hi} · ≈ ${wpm} słów/min`,
+  longest: 'Najdłużej bez oddechu',
+  longestSub: (limit: number, mean: string) => `limit ${limit} s · średnio ${mean}`,
+  overLimit: 'Frazy ponad limit',
+  ofPhrases: (n: number) => `z ${n}`,
+  fastPhrases: (n: number) => `${n} ${plPlural(n, 'fraza za szybka', 'frazy za szybkie', 'fraz za szybkich')}`,
+  noFastPhrases: 'brak za szybkich fraz',
+  breaths: 'Oddechy',
+  breathsSub: (n: number, mean: string) => `${n} ${plPlural(n, 'pauza', 'pauzy', 'pauz')} · średnio ${mean} s`,
+  tipsTitle: 'Wskazówki',
+  listen: 'Odsłuchaj',
+  timelineTitle: 'Oś czasu',
+  pause: 'Pauza',
+  play: 'Odtwórz',
+  timelineDescription: 'Środkowy pasek to frazy między oddechami, dolny — tempo każdej frazy na tle Twojego celu. Kliknij, aby przewinąć lub odsłuchać frazę.',
+  phrasesTitle: 'Frazy',
+  phrasesDescription: 'Każda fraza to fragment mowy między dwoma oddechami. Kliknij wiersz, aby go odsłuchać.',
+  colStart: 'Start',
+  colNoBreath: 'Bez oddechu',
+  colTempo: 'Tempo',
+  colPauseAfter: 'Pauza po',
+  overLimitBadge: 'ponad limit',
+  readText: 'Czytany tekst',
+  tips: plTips,
+  warnings: {
+    clipping: 'Nagranie było przesterowane — odsuń się od mikrofonu lub zmniejsz jego czułość.',
+  },
+};
+
+export const en: typeof pl = {
+  timeline: {
+    label: 'Recording timeline: waveform, phrases between breaths and the pace of each phrase',
+    pause: (long: boolean, seconds: string) => `${long ? 'Long pause' : 'Breath'} ${seconds} s`,
+    phraseBreath: (n: number, seconds: string, over: boolean) => `Phrase ${n}: ${seconds} s without a breath${over ? ' — too long!' : ''}`,
+    phraseRate: (n: number, rate: string, short: boolean) => `Phrase ${n}: ${rate} syl/s${short ? ' (too short for a reliable measurement)' : ''}`,
+    legendOk: 'phrase within the breath limit',
+    legendWarn: 'close to the limit',
+    legendBad: 'too long without a breath / too fast',
+    legendBreath: 'breath (pause)',
+    legendTarget: (lo: string, hi: string) => `target pace ${lo}–${hi} syl/s`,
+  },
+  tempo: {
+    short: 'short',
+    slow: 'slow',
+    ok: 'good',
+    fast: 'fast',
+    too_fast: 'too fast',
+  },
+  loading: 'Loading…',
+  notFound: 'Session not found.',
+  backToHistory: 'Back to history',
+  migrating: 'This session comes from a previous app version and is being recalculated…',
+  history: 'History',
+  title: (presentation?: string) => `Session report${presentation ? `: ${presentation}` : ''}`,
+  microphone: (device: string) => `microphone: ${device}`,
+  unknownDevice: 'unknown',
+  presentationHistory: 'Presentation history',
+  presentAgain: 'Present again',
+  practiceAgain: 'Practise again',
+  deleteTitle: 'Delete session?',
+  deleteDescription: 'This session and its recording will be deleted. This cannot be undone.',
+  deleteConfirm: 'Delete session',
+  deleteError: 'Could not delete the session. Please try again.',
+  stale: 'Settings or calibration have changed since this session.',
+  recompute: 'Recalculate with current settings',
+  noAudio: 'The recording of this session is not available – playback disabled.',
+  readingTime: 'Estimated reading time',
+  readingTimeValue: (v: string) => `approx. ${v}`,
+  readingTimeHint: 'At the target pace saved in the session, including pauses',
+  pace: 'Speaking pace',
+  paceSub: (lo: string, hi: string, wpm: number) => `target ${lo}–${hi} · ≈ ${wpm} words/min`,
+  longest: 'Longest without a breath',
+  longestSub: (limit: number, mean: string) => `limit ${limit} s · average ${mean}`,
+  overLimit: 'Phrases over the limit',
+  ofPhrases: (n: number) => `of ${n}`,
+  fastPhrases: (n: number) => `${n} ${enPlural(n, 'phrase', 'phrases')} too fast`,
+  noFastPhrases: 'no phrases too fast',
+  breaths: 'Breaths',
+  breathsSub: (n: number, mean: string) => `${n} ${enPlural(n, 'pause', 'pauses')} · average ${mean} s`,
+  tipsTitle: 'Tips',
+  listen: 'Listen',
+  timelineTitle: 'Timeline',
+  pause: 'Pause',
+  play: 'Play',
+  timelineDescription: 'The middle lane shows phrases between breaths, the bottom one the pace of each phrase against your target. Click to seek or listen to a phrase.',
+  phrasesTitle: 'Phrases',
+  phrasesDescription: 'Each phrase is a stretch of speech between two breaths. Click a row to listen to it.',
+  colStart: 'Start',
+  colNoBreath: 'Without a breath',
+  colTempo: 'Pace',
+  colPauseAfter: 'Pause after',
+  overLimitBadge: 'over limit',
+  readText: 'Text read',
+  tips: enTips,
+  warnings: {
+    clipping: 'The recording was clipping — move away from the microphone or lower its sensitivity.',
+  },
+};

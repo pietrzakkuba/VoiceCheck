@@ -3,6 +3,7 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/store/settings';
+import { useT } from '@/i18n';
 
 const query = '(prefers-color-scheme: dark)';
 const getSystemDark = () => window.matchMedia(query).matches;
@@ -17,6 +18,7 @@ function subscribe(onChange: () => void) {
 export function ThemeSwitch({ id }: { id?: string }) {
   const theme = useSettings((s) => s.theme);
   const set = useSettings((s) => s.set);
+  const t = useT().settings;
   const systemDark = useSyncExternalStore(subscribe, getSystemDark, getServerDark);
   const dark = theme === 'dark' || (theme === 'system' && systemDark);
 
@@ -25,9 +27,9 @@ export function ThemeSwitch({ id }: { id?: string }) {
       id={id}
       type="button"
       role="switch"
-      aria-label="Ciemny motyw"
+      aria-label={t.darkTheme}
       aria-checked={dark}
-      title={dark ? 'Włącz jasny motyw' : 'Włącz ciemny motyw'}
+      title={dark ? t.enableLight : t.enableDark}
       variant="outline"
       className="relative h-9 w-18 rounded-full p-0"
       onClick={() => set({ theme: dark ? 'light' : 'dark' })}

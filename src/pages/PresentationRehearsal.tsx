@@ -17,12 +17,15 @@ import { useSettings } from '@/store/settings';
 import { formatDuration, textStats } from '@/lib/presentation';
 import { cn } from '@/lib/utils';
 import { presentationText } from '@/lib/presentationDocument';
+import { langOf, useT } from '@/i18n';
 
 export default function PresentationRehearsal() {
   const { id } = useParams();
   const presentation = useLiveQuery(() => (id ? getPresentation(id) : null), [id], undefined);
   const text = useMemo(() => presentationText(presentation?.text ?? '', presentation?.document), [presentation]);
+  const language = langOf(presentation);
   const target = useSettings((s) => s.targetArticulationRate);
+  const t = useT();
   const maxBreathSeconds = useSettings((s) => s.maxContinuousSpeechSeconds);
   const autoScroll = useSettings((s) => s.readingAutoScroll);
   const mobile = useMobileLayout();
@@ -30,7 +33,7 @@ export default function PresentationRehearsal() {
   const setAutoScroll = useCallback((readingAutoScroll: boolean) => setSettings({ readingAutoScroll }), [setSettings]);
   const ts = useTrainingSession();
   const nav = useNavigate();
-  const stats = useMemo(() => textStats(text, target), [text, target]);
+  const stats = useMemo(() => textStats(text, target, language), [text, target, language]);
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
   const { frameColor } = useLiveIndicators(ts.phase, ts.stats, target);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle');
@@ -48,6 +51,7 @@ export default function PresentationRehearsal() {
       mode: 'presentation',
       targetText: text.trim(),
       presentationId: presentation.id,
+      language: langOf(presentation),
     });
   }, [searchParams, setSearchParams, presentation, stats.words, ts.phase, startSession, text]);
 
@@ -64,7 +68,7 @@ export default function PresentationRehearsal() {
   if (presentation === undefined) {
     return (
       <div className="flex justify-center py-20 text-muted-foreground">
-        <Loader2 className="size-6 animate-spin" aria-label="Ładowanie" />
+        <Loader2 className="size-6 animate-spin" aria-label={t.common.loading} />
       </div>
     );
   }
@@ -72,8 +76,8 @@ export default function PresentationRehearsal() {
   if (!presentation) {
     return (
       <div className="space-y-4">
-        <Alert variant="warn">Nie znaleziono tej prezentacji – mogła zostać usunięta.</Alert>
-        <Button variant="outline" asChild><Link to="/presentations"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
+        <Alert variant="warn">{t.presentations.notFound}</Alert>
+        <Button variant="outline" asChild><Link to="/presentations"><ArrowLeft className="size-4" aria-hidden /> {t.presentations.backToList}</Link></Button>
       </div>
     );
   }
@@ -82,6 +86,7 @@ export default function PresentationRehearsal() {
     mode: 'presentation',
     targetText: text.trim(),
     presentationId: presentation.id,
+    language,
   });
   const stop = async () => {
     const s = await ts.stop();
@@ -93,15 +98,15 @@ export default function PresentationRehearsal() {
       <div className="rehearsal-intro">
         {!active && (
           <Link to="/presentations" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-            <ArrowLeft className="size-4" aria-hidden /> Prezentacje
+            <ArrowLeft className="size-4" aria-hidden /> {t.presentations.title}
           </Link>
         )}
-        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><PresentationIcon className="size-6 text-primary" aria-hidden /> {presentation.title}</h1>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><PresentationIcon className="size-6 text-primary" aria-hidden /> <span lang={language}>{presentation.title}</span></h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Wygłoś prezentację na głos. Na bieżąco widzisz tempo, a pasek oddechu przypomni Ci o wdechu, gdy mówisz zbyt długo bez przerwy.
+          {t.presentations.rehearsal.intro}
         </p>
         <p className="text-muted-foreground text-sm mt-1">
-          Szacowany czas czytania: ok. {formatDuration(stats.estimatedSeconds)} (w Twoim tempie docelowym, z uwzględnieniem pauz)
+          {t.presentations.estimate(formatDuration(stats.estimatedSeconds))} ({t.presentations.estimateNote})
         </p>
       </div>
 
@@ -109,9 +114,9 @@ export default function PresentationRehearsal() {
         <div className="rehearsal-settings flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="flex min-w-60 flex-1 items-center justify-between gap-4">
             <div>
-              <Label htmlFor="reading-auto-scroll">Automatyczne przewijanie tekstu</Label>
+              <Label htmlFor="reading-auto-scroll">{t.presentations.rehearsal.autoScroll}</Label>
               <p id="reading-auto-scroll-description" className="text-xs text-muted-foreground">
-                Szacuje postęp na podstawie wykrytych sylab. Zatrzymuje się podczas ciszy.
+                {t.presentations.rehearsal.autoScrollHint}
               </p>
             </div>
             <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
@@ -125,29 +130,29 @@ export default function PresentationRehearsal() {
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1.5">
-                <CardTitle>Tekst prezentacji</CardTitle>
+                <CardTitle>{t.presentations.rehearsal.textTitle}</CardTitle>
                 <CardDescription>
-                  {stats.words} słów · {stats.syllables} sylab
+                  {t.presentations.words(stats.words)} · {t.presentations.syllables(stats.syllables)}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={copyText} disabled={copyStatus === 'copying'}>
-                  <Copy className="size-4" aria-hidden /> Kopiuj tekst
+                  <Copy className="size-4" aria-hidden /> {t.presentations.rehearsal.copy}
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={`/presentations/${presentation.id}`}><Pencil className="size-4" aria-hidden /> Edytuj</Link>
+                  <Link to={`/presentations/${presentation.id}`}><Pencil className="size-4" aria-hidden /> {t.presentations.edit}</Link>
                 </Button>
               </div>
             </div>
             <span role="status" className="text-sm text-muted-foreground">
-              {copyStatus === 'copied' ? 'Skopiowano tekst.' : ''}
+              {copyStatus === 'copied' ? t.presentations.rehearsal.copied : ''}
             </span>
             {copyStatus === 'error' && (
-              <Alert variant="bad">Nie udało się skopiować tekstu. Sprawdź uprawnienia schowka lub zaznacz i skopiuj tekst ręcznie.</Alert>
+              <Alert variant="bad">{t.presentations.rehearsal.copyError}</Alert>
             )}
           </CardHeader>
           <CardContent>
-            <div className="max-h-80 overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/30 px-3 py-2 text-sm" tabIndex={0} role="region" aria-label="Podgląd tekstu prezentacji">
+            <div className="max-h-80 overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/30 px-3 py-2 text-sm" tabIndex={0} role="region" aria-label={t.presentations.rehearsal.preview} lang={language}>
               <PresentationContent text={text} document={presentation.document} />
             </div>
           </CardContent>
@@ -159,6 +164,7 @@ export default function PresentationRehearsal() {
           <RehearsalText
             text={text}
             document={presentation.document}
+            lang={language}
             autoScroll={autoScroll && !mobile}
             onAutoScrollChange={setAutoScroll}
             syllablesRead={ts.phase === 'recording' && ts.stats && !ts.stats.calibrating ? ts.stats.syllables : null}
@@ -180,7 +186,7 @@ export default function PresentationRehearsal() {
       )}
       <div className="rehearsal-controls flex items-center gap-3">
         <RecordControls phase={ts.phase} onStart={start} onStop={stop} disabled={stats.words < 1} />
-        {ts.phase === 'recording' && <span className="text-sm text-muted-foreground">Mów naturalnie. Kliknij „Zakończ”, gdy skończysz.</span>}
+        {ts.phase === 'recording' && <span className="text-sm text-muted-foreground">{t.presentations.rehearsal.recordingHint}</span>}
       </div>
       {active && (
         <div className="rehearsal-diagnostics">

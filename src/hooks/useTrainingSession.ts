@@ -3,7 +3,8 @@ import { MicCapture, MicError } from '@/audio/capture';
 import type { LiveStats } from '@/audio/liveAnalyzer';
 import { finalizeRecording, type SessionMeta } from '@/lib/sessionPipeline';
 import { playBreathAlert, primeAlertAudio } from '@/lib/alert';
-import { getSettings } from '@/store/settings';
+import { calibrationFor, getSettings } from '@/store/settings';
+import { getT } from '@/i18n';
 import { getBaseline } from '@/store/db';
 import type { TrainingSession } from '@/types';
 
@@ -43,25 +44,26 @@ export function useTrainingSession() {
     stopping.current = null;
     lastBreath.current = 'ok';
     const s = getSettings();
+    const calibration = calibrationFor(m.language, s);
     try {
       const capture = await MicCapture.start({
         deviceId: s.micDeviceId ?? undefined,
         calibrateMs: o.calibrateMs ?? 2000,
         noiseFloorDb: o.noiseFloorDb,
-        correction: s.liveSyllableCorrection,
-        syllablesPerWord: s.syllablesPerWord,
+        correction: calibration.liveSyllableCorrection,
+        syllablesPerWord: calibration.syllablesPerWord,
         maxContinuousMs: s.maxContinuousSpeechSeconds * 1000,
         onStats,
       });
       cap.current = capture;
       setPhase('recording');
-      const baseline = await getBaseline();
+      const baseline = await getBaseline(m.language);
       if (baseline && baseline.deviceLabel && capture.deviceLabel && baseline.deviceLabel !== capture.deviceLabel) {
-        setDeviceWarning(`Używasz innego mikrofonu („${capture.deviceLabel}”) niż podczas kalibracji („${baseline.deviceLabel}”). Zalecana ponowna kalibracja.`);
+        setDeviceWarning(getT().audio.session.otherMicrophone(capture.deviceLabel, baseline.deviceLabel));
       }
     } catch (e) {
       cap.current = null;
-      setError(e instanceof MicError ? e.message : `Nie udało się rozpocząć nagrania: ${(e as Error).message}`);
+      setError(e instanceof MicError ? e.message : getT().audio.session.startFailed((e as Error).message));
       setPhase('error');
     }
   }, [onStats]);
@@ -76,7 +78,7 @@ export function useTrainingSession() {
         const r = await c.stop();
         cap.current = null;
         if (r.durationMs < 1000 || !r.speech.length) {
-          setError('Nie wykryto mowy. Sprawdź mikrofon i spróbuj ponownie.');
+          setError(getT().audio.session.noSpeech);
           setPhase('error');
           return null;
         }
@@ -85,7 +87,7 @@ export function useTrainingSession() {
         return session;
       } catch (e) {
         cap.current = null;
-        setError(`Błąd analizy: ${(e as Error).message}`);
+        setError(getT().audio.session.analysisFailed((e as Error).message));
         setPhase('error');
         return null;
       }
@@ -106,7 +108,7 @@ export function useTrainingSession() {
     const md = navigator.mediaDevices;
     if (!md?.addEventListener) return;
     const onChange = () => {
-      if (cap.current) setDeviceWarning('Zmieniono urządzenie audio w trakcie nagrania. Jeśli mikrofon został odłączony, zatrzymaj i rozpocznij ponownie.');
+      if (cap.current) setDeviceWarning(getT().audio.session.deviceChanged);
     };
     md.addEventListener('devicechange', onChange);
     return () => md.removeEventListener('devicechange', onChange);

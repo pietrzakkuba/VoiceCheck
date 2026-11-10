@@ -1,4 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
+import type { Lang } from '@/i18n/lang';
 
 // Data schema: speech tempo and breathing only.
 
@@ -59,13 +60,22 @@ export interface SessionMetrics {
 
 export type TipSeverity = 'bad' | 'warn' | 'ok' | 'info';
 
+export type TipKey = 'no_speech' | 'breath_limit' | 'too_fast' | 'too_slow' | 'speeding_up' | 'noise' | 'all_ok';
+
+/** Report tip; its text is localized when displayed, from the key and params. */
 export interface Tip {
-  key: string;
+  key: TipKey;
   severity: TipSeverity;
-  title: string;
-  detail: string;
+  /** Numbers the localized text is built from. */
+  params?: Record<string, number>;
+  /** Legacy Polish text stored before the app was localized. */
+  title?: string;
+  detail?: string;
   atMs?: number;
 }
+
+/** Stored session warning codes; older sessions may contain Polish text instead. */
+export type SessionWarning = 'clipping';
 
 /** Settings the session was analysed with (thresholds shown in the report). */
 export interface AnalysisSettings {
@@ -91,6 +101,8 @@ export interface TrainingSession {
   targetText?: string;
   /** Presentation this session was a rehearsal of. */
   presentationId?: string;
+  /** Speech language (selects the calibration). Missing for sessions recorded before English support (Polish). */
+  language?: Lang;
   deviceLabel: string;
   durationSeconds: number;
   audioKey: string;
@@ -117,11 +129,15 @@ export interface Presentation {
   text: string;
   /** Optional for presentations saved before rich-text editing. */
   document?: PresentationDocument;
+  /** Missing for presentations created before English support (Polish). */
+  language?: Lang;
   createdAt: number;
   updatedAt: number;
 }
 
 export interface UserBaseline {
+  /** Missing for calibrations made before English support (Polish). */
+  language?: Lang;
   createdAt: number;
   deviceLabel: string;
   articulationRate: number;

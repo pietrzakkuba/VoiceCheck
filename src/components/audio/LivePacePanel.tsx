@@ -7,6 +7,7 @@ import { BreathBar } from '@/components/audio/BreathBar';
 import { SessionTime } from '@/components/SessionTime';
 import { T } from '@/engine/thresholds';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 /** Live pace + breath state derived from the current recording phase and stats. Pass `prevZone` for hysteresis. */
 export function liveIndicators(phase: SessionPhase, stats: LiveStats | null, target: [number, number], prevZone?: RateZoneKey) {
@@ -35,23 +36,24 @@ export function LivePacePanel({ phase, stats, target, maxBreathSeconds }: {
   target: [number, number];
   maxBreathSeconds: number;
 }) {
+  const t = useT().audio.pace;
   const { rate, pace } = useLiveIndicators(phase, stats, target);
-  const breathInactiveLabel = phase === 'starting' ? 'Uruchamianie…'
-    : phase === 'processing' ? 'Analizowanie…'
-    : stats?.calibrating ? 'Kalibracja…'
-    : !stats ? 'Oczekiwanie…'
+  const breathInactiveLabel = phase === 'starting' ? t.startingShort
+    : phase === 'processing' ? t.processingShort
+    : stats?.calibrating ? t.calibratingShort
+    : !stats ? t.waiting
     : undefined;
-  const paceLabel = phase === 'starting' ? 'Uruchamiam mikrofon…'
-    : phase === 'processing' ? 'Analizuję nagranie…'
-    : stats?.calibrating ? 'Zachowaj ciszę – kalibracja'
-    : rate === null ? 'Czytaj – mierzę tempo…'
+  const paceLabel = phase === 'starting' ? t.starting
+    : phase === 'processing' ? t.processing
+    : stats?.calibrating ? t.calibrating
+    : rate === null ? t.measuring
     : pace.label;
 
   return (
     <div className="grid w-full grid-cols-2 gap-3">
       <div className={cn('min-w-0 rounded-lg border-2 border-current bg-current/10 p-3 transition-colors duration-300', pace.cls)}>
         <div className="flex h-6 items-center gap-2 text-sm font-semibold uppercase tracking-wide">
-          <Gauge className="size-5 shrink-0" aria-hidden /> <span className="truncate">Tempo czytania</span>
+          <Gauge className="size-5 shrink-0" aria-hidden /> <span className="truncate">{t.title}</span>
         </div>
         <div className="h-12 whitespace-nowrap text-4xl font-bold leading-[3rem] tabular-nums sm:text-5xl">
           {rate !== null ? rate.toFixed(1) : '–'} <span className="text-sm font-normal text-muted-foreground">syl/s</span>

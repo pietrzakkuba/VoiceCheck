@@ -34,7 +34,7 @@ vi.mock('dexie', () => ({
         sortBy: vi.fn(),
       }),
     };
-    version() { return { stores: vi.fn() }; }
+    version() { return { stores: () => ({ upgrade: vi.fn() }) }; }
   },
 }));
 vi.mock('@/store/db', async (importOriginal) => ({
@@ -104,7 +104,7 @@ describe('free speech', () => {
 
   it('records a free_speech session without text or time limit', () => {
     renderToStaticMarkup(<FreeSpeech />);
-    expect(mocks.start).toHaveBeenCalledWith({ mode: 'free_speech' });
+    expect(mocks.start).toHaveBeenCalledWith({ mode: 'free_speech', language: 'pl' });
   });
 
   it('removes the wake lock option and does not request a lock on mobile', async () => {

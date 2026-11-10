@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { NormToken } from '@/engine/normalize';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 export interface DisplayGroup {
   raw: string;
@@ -27,6 +28,7 @@ export function TargetText({ tokens, activeToken = -1, doneUntil = -1, className
   className?: string;
   breathe?: boolean;
 }) {
+  const t = useT();
   const groups = useMemo(() => displayGroups(tokens), [tokens]);
   return (
     <p className={cn('text-xl md:text-2xl leading-relaxed md:leading-relaxed', className)}>
@@ -47,7 +49,7 @@ export function TargetText({ tokens, activeToken = -1, doneUntil = -1, className
           </span>
         );
       })}
-      {breathe && <span className="ml-2 inline-block rounded-md bg-info/15 px-2 py-0.5 text-base text-info align-middle">Weź oddech…</span>}
+      {breathe && <span className="ml-2 inline-block rounded-md bg-info/15 px-2 py-0.5 text-base text-info align-middle">{t.audio.breath.takeBreath}</span>}
     </p>
   );
 }

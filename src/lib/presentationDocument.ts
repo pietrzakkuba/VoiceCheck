@@ -2,6 +2,7 @@ import type { JSONContent } from '@tiptap/core';
 import { normalizeText } from '@/engine/normalize';
 import { countTextSyllables } from '@/engine/syllables';
 import type { PresentationDocument } from '@/types';
+import type { Lang } from '@/i18n/lang';
 
 export function documentFromText(text: string): PresentationDocument {
   return {
@@ -48,13 +49,13 @@ export interface ReadingChunk {
   endSyllable: number;
 }
 
-export function readingChunks(text: string): ReadingChunk[] {
+export function readingChunks(text: string, lang: Lang = 'pl'): ReadingChunk[] {
   let end = 0;
   let endSyllable = 0;
   return (text.match(/\s+|\S+/g) ?? []).map((raw) => {
     const start = end;
     end += raw.length;
-    endSyllable += countTextSyllables(normalizeText(raw).map((token) => token.word));
+    endSyllable += countTextSyllables(normalizeText(raw, lang).map((token) => token.word), lang);
     return { raw, start, end, endSyllable };
   });
 }

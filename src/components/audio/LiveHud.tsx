@@ -10,6 +10,7 @@ import { useSettings } from '@/store/settings';
 import { formatMs } from '@/lib/utils';
 import type { SessionPhase } from '@/hooks/useTrainingSession';
 import { T } from '@/engine/thresholds';
+import { useT } from '@/i18n';
 
 export function LiveHud({ stats, getDb, getSpeaking, showBreath = true, compactMobile = false }: {
   stats: LiveStats | null;
@@ -19,35 +20,36 @@ export function LiveHud({ stats, getDb, getSpeaking, showBreath = true, compactM
   compactMobile?: boolean;
 }) {
   const s = useSettings();
+  const t = useT().audio.hud;
   return (
     <div className="space-y-3">
       {stats?.calibrating && (
         <Alert variant="info" className={`justify-center text-base font-medium${compactMobile ? ' live-hud-compact-mobile-details' : ''}`}>
-          <MicOff className="size-5" aria-hidden /> Zachowaj ciszę (2 s) – mierzę szum tła…
+          <MicOff className="size-5" aria-hidden /> {t.calibrating}
         </Alert>
       )}
         <div className={compactMobile ? 'live-hud-compact-mobile-details space-y-3' : 'space-y-3'}>
           {showBreath && <BreathBar className="live-hud-breath" runMs={stats?.breathRunMs ?? 0} maxMs={s.maxContinuousSpeechSeconds * 1000} state={stats?.breathState ?? 'ok'} />}
           <WaveformCanvas getDb={getDb} getSpeaking={getSpeaking} />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
-            <span>Czas: {formatMs(stats?.elapsedMs ?? 0)}</span>
-            <span>Mowa: {formatMs(stats?.speechMs ?? 0)}</span>
+            <span>{t.time(formatMs(stats?.elapsedMs ?? 0))}</span>
+            <span>{t.speech(formatMs(stats?.speechMs ?? 0))}</span>
             <span>SNR: {stats?.snrDb != null ? `${stats.snrDb.toFixed(0)} dB` : '–'}</span>
-            <span className={stats?.speaking ? 'text-primary font-medium' : ''}>{stats?.speaking ? '● mówisz' : '○ cisza'}</span>
+            <span className={stats?.speaking ? 'text-primary font-medium' : ''}>{stats?.speaking ? t.speaking : t.silence}</span>
         </div>
       </div>
       {stats?.snrDb != null && stats.snrDb < T.snrWarnDb && (
-        <Alert variant="warn"><VolumeX className="size-4 mt-0.5" aria-hidden /> Duży szum tła (SNR {stats.snrDb.toFixed(0)} dB). Wyniki mogą być mniej wiarygodne – przejdź w cichsze miejsce lub przybliż mikrofon.</Alert>
+        <Alert variant="warn"><VolumeX className="size-4 mt-0.5" aria-hidden /> {t.noise(stats.snrDb.toFixed(0))}</Alert>
       )}
       {stats?.clipping && (
-        <Alert variant="bad"><AlertTriangle className="size-4 mt-0.5" aria-hidden /> Przesterowanie! Odsuń mikrofon lub zmniejsz jego czułość w systemie.</Alert>
+        <Alert variant="bad"><AlertTriangle className="size-4 mt-0.5" aria-hidden /> {t.clipping}</Alert>
       )}
     </div>
   );
 }
 
 /** Start/stop control with processing state. */
-export function RecordControls({ phase, onStart, onStop, startLabel = 'Prezentuj', stopLabel = 'Zakończ', disabled }: {
+export function RecordControls({ phase, onStart, onStop, startLabel, stopLabel, disabled }: {
   phase: SessionPhase;
   onStart: () => void;
   onStop: () => void;
@@ -58,6 +60,7 @@ export function RecordControls({ phase, onStart, onStop, startLabel = 'Prezentuj
   const buttonRef = useRef<HTMLButtonElement>(null);
   const actionPending = useRef(false);
   const hintId = useId();
+  const t = useT().audio.controls;
   const busy = phase === 'starting' || phase === 'processing';
   const unavailable = busy || (phase !== 'recording' && disabled);
 
@@ -96,12 +99,12 @@ export function RecordControls({ phase, onStart, onStop, startLabel = 'Prezentuj
         aria-describedby={unavailable ? undefined : hintId}
       >
         {busy ? <Loader2 className="animate-spin" aria-hidden /> : phase === 'recording' ? <Square aria-hidden /> : <Mic aria-hidden />}
-        {phase === 'starting' ? 'Uruchamiam mikrofon…' : phase === 'processing' ? 'Analizuję…' : phase === 'recording' ? stopLabel : startLabel}
+        {phase === 'starting' ? t.starting : phase === 'processing' ? t.processing : phase === 'recording' ? stopLabel ?? t.stop : startLabel ?? t.start}
       </Button>
       {!unavailable && (
         <p id={hintId} className="hidden text-sm leading-7 text-muted-foreground md:block">
-          <kbd className="rounded border bg-muted px-2 py-1 font-sans text-xs">Spacja</kbd>
-          {' — '}{phase === 'recording' ? 'zakończ nagranie' : 'rozpocznij nagranie'}
+          <kbd className="rounded border bg-muted px-2 py-1 font-sans text-xs">{t.space}</kbd>
+          {' — '}{phase === 'recording' ? t.stopHint : t.startHint}
         </p>
       )}
     </div>

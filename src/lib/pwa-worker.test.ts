@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchWithOffline, withIsolation } from './pwa-worker';
+import { allPrecached, fetchWithOffline, handleOfflineFirst, withIsolation } from './pwa-worker';
 
 function navigation() {
   const request = new Request('https://voicecheck.test/presentations/123/rehearse');
@@ -56,5 +56,57 @@ describe('PWA response handling', () => {
       vi.fn().mockRejectedValue(new Error('offline')),
       async () => undefined,
     )).rejects.toThrow('offline');
+  });
+});
+
+describe('offline-first routing', () => {
+  const scope = 'https://voicecheck.test/';
+  const files: Record<string, string> = {
+    'https://voicecheck.test/index.html': 'app shell',
+    'https://voicecheck.test/offline.html': 'offline document',
+    'https://voicecheck.test/vendor/silero_vad_v5.onnx': 'model',
+  };
+  const precached = async (url: string) => (url in files ? new Response(files[url]) : undefined);
+
+  it('serves precached files from cache without the network', async () => {
+    const fetchResponse = vi.fn();
+    const response = await handleOfflineFirst(
+      new Request('https://voicecheck.test/vendor/silero_vad_v5.onnx'),
+      { scope, fetchResponse, precached },
+    );
+    expect(await response.text()).toBe('model');
+    expect(response.headers.get('Cross-Origin-Embedder-Policy')).toBe('require-corp');
+    expect(fetchResponse).not.toHaveBeenCalled();
+  });
+
+  it('opens any in-scope page from the cached app shell', async () => {
+    const fetchResponse = vi.fn();
+    const response = await handleOfflineFirst(navigation(), { scope, fetchResponse, precached });
+    expect(await response.text()).toBe('app shell');
+    expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
+    expect(fetchResponse).not.toHaveBeenCalled();
+  });
+
+  it('uses the network for files that are not precached', async () => {
+    const fetchResponse = vi.fn().mockResolvedValue(new Response('fresh'));
+    const response = await handleOfflineFirst(
+      new Request('https://voicecheck.test/other.json'),
+      { scope, fetchResponse, precached },
+    );
+    expect(await response.text()).toBe('fresh');
+  });
+
+  it('falls back to the network and then the offline document without a cached shell', async () => {
+    const only = async (url: string) => (url.endsWith('offline.html') ? new Response('offline document') : undefined);
+    const response = await handleOfflineFirst(navigation(), {
+      scope, fetchResponse: vi.fn().mockRejectedValue(new TypeError('offline')), precached: only,
+    });
+    expect(await response.text()).toBe('offline document');
+  });
+
+  it('reports readiness only when every precached file is present', async () => {
+    expect(await allPrecached(['a', 'b'], async () => true)).toBe(true);
+    expect(await allPrecached(['a', 'b'], async (key) => key === 'a')).toBe(false);
+    expect(await allPrecached([], async () => true)).toBe(false);
   });
 });

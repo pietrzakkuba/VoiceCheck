@@ -197,7 +197,7 @@ describe('presentation rehearsal', () => {
     expect(mocks.start).not.toHaveBeenCalled();
     await act(async () => host.querySelector<HTMLButtonElement>('.rehearsal-controls button')!.click());
     expect(mocks.start).toHaveBeenCalledWith({
-      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1',
+      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1', language: 'pl',
     });
   });
 
@@ -206,7 +206,7 @@ describe('presentation rehearsal', () => {
     mocks.presentation = { ...PRESENTATION, text: 'Old text', document: documentFromText('  Treść wystąpienia.  ') };
     await renderPage();
     expect(mocks.start).toHaveBeenCalledExactlyOnceWith({
-      mode: 'presentation', targetText: 'Treść wystąpienia.', presentationId: 'p1',
+      mode: 'presentation', targetText: 'Treść wystąpienia.', presentationId: 'p1', language: 'pl',
     });
     expect(mocks.setSearchParams).toHaveBeenCalledTimes(1);
     const [params, options] = mocks.setSearchParams.mock.calls[0];
@@ -225,8 +225,39 @@ describe('presentation rehearsal', () => {
     mocks.presentation = PRESENTATION;
     await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
     expect(mocks.start).toHaveBeenCalledExactlyOnceWith({
-      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1',
+      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1', language: 'pl',
     });
+  });
+
+  it('rehearses an English presentation in English and marks its text with lang="en"', async () => {
+    const text = 'Good morning everyone. Today I will talk about our results.';
+    mocks.presentation = { ...PRESENTATION, text, language: 'en' };
+    const html = renderToStaticMarkup(<PresentationRehearsal />);
+    const estimated = textStats(text, DEFAULT_SETTINGS.targetArticulationRate, 'en').estimatedSeconds;
+    expect(html).toContain(`Szacowany czas czytania: ok. ${formatDuration(estimated)}`);
+    expect(html).toContain('lang="en"');
+
+    const host = await renderPage();
+    await act(async () => host.querySelector<HTMLButtonElement>('.rehearsal-controls button')!.click());
+    expect(mocks.start).toHaveBeenCalledWith({ mode: 'presentation', targetText: text, presentationId: 'p1', language: 'en' });
+    mocks.phase = 'recording';
+    await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+    expect(mocks.readingProps).toMatchObject({ lang: 'en' });
+    expect(host.querySelector('.rehearsal-text [lang="en"]')?.textContent).toContain('Good morning everyone.');
+  });
+
+  it('renders the rehearsal UI in English when the app language is English', async () => {
+    const { useSettings } = await vi.importActual<typeof import('@/store/settings')>('@/store/settings');
+    useSettings.setState({ appLanguage: 'en' });
+    try {
+      const html = renderToStaticMarkup(<PresentationRehearsal />);
+      expect(html).toContain('Presentation text');
+      expect(html).toContain('Copy text');
+      expect(html).toContain('Estimated reading time: approx.');
+      expect(html).toContain('lang="pl"');
+    } finally {
+      useSettings.setState({ appLanguage: 'pl' });
+    }
   });
 
   it.each([null, { ...PRESENTATION, text: '   ' }])('does not auto-start a missing or empty presentation', async (presentation) => {

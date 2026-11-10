@@ -4,6 +4,7 @@ import { useWakeLock } from '@/hooks/useWakeLock';
 import { useMobileLayout } from '@/hooks/useMobileLayout';
 import { useSettings } from '@/store/settings';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 /** Remembered desktop option; holds a screen wake lock while `active`. */
 export function KeepScreenAwakeToggle({ active, className }: { active: boolean; className?: string }) {
@@ -11,6 +12,7 @@ export function KeepScreenAwakeToggle({ active, className }: { active: boolean; 
   const setSettings = useSettings((s) => s.set);
   const setKeepAwake = useCallback((keepScreenAwake: boolean) => setSettings({ keepScreenAwake }), [setSettings]);
   const mobile = useMobileLayout();
+  const t = useT().audio.wakeLock;
   const status = useWakeLock(active && keepAwake && !mobile);
 
   if (mobile) return null;
@@ -18,13 +20,13 @@ export function KeepScreenAwakeToggle({ active, className }: { active: boolean; 
   return (
     <div className={cn('flex items-center justify-between gap-4', className)}>
       <div>
-        <Label htmlFor="keep-screen-awake">Nie wygaszaj ekranu</Label>
+        <Label htmlFor="keep-screen-awake">{t.label}</Label>
         <p id="keep-screen-awake-description" className="text-xs text-muted-foreground">
           {status === 'unsupported'
-            ? 'Ta przeglądarka nie obsługuje blokady wygaszania ekranu.'
+            ? t.unsupported
             : status === 'error'
-              ? 'Nie udało się zablokować wygaszania ekranu (np. tryb oszczędzania baterii).'
-              : 'Ekran pozostaje włączony podczas nagrywania.'}
+              ? t.error
+              : t.on}
         </p>
       </div>
       <Switch

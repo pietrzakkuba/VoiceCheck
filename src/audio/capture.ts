@@ -1,4 +1,5 @@
 import type { SpeechSegment } from '@/types';
+import { getT } from '@/i18n';
 import workletUrl from './capture.worklet.ts?worker&url';
 import { FeatureExtractor, SR } from '@/engine/features';
 import { refineSpeech } from '@/engine/segmentation';
@@ -78,7 +79,7 @@ export class MicCapture {
 
   static async start(o: CaptureOptions): Promise<MicCapture> {
     if (!navigator.mediaDevices?.getUserMedia || typeof AudioWorkletNode === 'undefined') {
-      throw new MicError('unsupported', 'Ta przeglądarka nie obsługuje nagrywania (getUserMedia / AudioWorklet).');
+      throw new MicError('unsupported', getT().audio.mic.unsupported);
     }
     const c = new MicCapture(o);
     try {
@@ -90,9 +91,9 @@ export class MicCapture {
       });
     } catch (e) {
       const name = (e as DOMException)?.name;
-      if (name === 'NotAllowedError' || name === 'SecurityError') throw new MicError('denied', 'Brak dostępu do mikrofonu. Zezwól na użycie mikrofonu w ustawieniach przeglądarki (ikona kłódki przy adresie).');
-      if (name === 'NotFoundError' || name === 'OverconstrainedError') throw new MicError('notfound', 'Nie znaleziono mikrofonu. Podłącz mikrofon i spróbuj ponownie.');
-      throw new MicError('other', `Nie udało się uruchomić mikrofonu: ${(e as Error).message}`);
+      if (name === 'NotAllowedError' || name === 'SecurityError') throw new MicError('denied', getT().audio.mic.denied);
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') throw new MicError('notfound', getT().audio.mic.notFound);
+      throw new MicError('other', getT().audio.mic.startFailed((e as Error).message));
     }
     c.deviceLabel = c.stream.getAudioTracks()[0]?.label || 'Mikrofon';
     try {
@@ -101,7 +102,7 @@ export class MicCapture {
       await c.setupGraph();
     } catch (e) {
       c.stream.getTracks().forEach((t) => t.stop());
-      throw e instanceof MicError ? e : new MicError('other', `Błąd inicjalizacji audio: ${(e as Error).message}`);
+      throw e instanceof MicError ? e : new MicError('other', getT().audio.mic.initFailed((e as Error).message));
     }
     c.recorder = new AudioRecorder(c.stream);
     c.recorder.start();

@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router';
 import Settings from './Settings';
 import { clearAllData } from '@/store/db';
 import { DEFAULT_SETTINGS, useSettings } from '@/store/settings';
+import { getT } from '@/i18n';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -22,6 +23,23 @@ vi.mock('@/store/db', () => ({
 }));
 
 describe('settings return navigation', () => {
+  it('places app installation second from the bottom, immediately above data', () => {
+    const container = document.createElement('div');
+    container.innerHTML = renderToStaticMarkup(
+      <MemoryRouter><Settings /></MemoryRouter>,
+    );
+    const t = getT();
+    const titles = Array.from(container.querySelectorAll('h3'), (heading) => heading.textContent);
+
+    expect(titles).toEqual([
+      t.settings.appearance,
+      t.settings.paceTitle,
+      t.settings.micTitle,
+      t.pwa.install.title,
+      t.settings.dataTitle,
+    ]);
+  });
+
   it('shows an accessible home link above the title when opened directly', () => {
     const container = document.createElement('div');
     container.innerHTML = renderToStaticMarkup(
@@ -35,7 +53,8 @@ describe('settings return navigation', () => {
     expect(link?.className).toContain('focus-visible:ring-');
     expect(heading?.textContent?.trim()).toBe('Ustawienia');
     expect(link && heading && Boolean(link.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-    expect(container.querySelector('a[href="/calibration"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/calibration?lang=pl"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/calibration?lang=en"]')).not.toBeNull();
   });
 
   describe('settings confirmation dialogs', () => {
@@ -57,8 +76,11 @@ describe('settings return navigation', () => {
       useSettings.setState({
         ...DEFAULT_SETTINGS,
         maxContinuousSpeechSeconds: 12,
-        liveSyllableCorrection: 1.4,
-        syllablesPerWord: 2.8,
+        appLanguage: 'pl',
+        calibration: {
+          ...DEFAULT_SETTINGS.calibration,
+          pl: { liveSyllableCorrection: 1.4, syllablesPerWord: 2.8 },
+        },
         micDeviceId: 'selected-mic',
       });
       host = document.createElement('div');
@@ -93,8 +115,7 @@ describe('settings return navigation', () => {
       await act(async () => button('Przywróć ustawienia').click());
       expect(useSettings.getState()).toMatchObject({
         maxContinuousSpeechSeconds: DEFAULT_SETTINGS.maxContinuousSpeechSeconds,
-        liveSyllableCorrection: 1.4,
-        syllablesPerWord: 2.8,
+        calibration: { pl: { liveSyllableCorrection: 1.4, syllablesPerWord: 2.8 } },
         micDeviceId: 'selected-mic',
       });
       expect(clearAllData).not.toHaveBeenCalled();
@@ -107,11 +128,11 @@ describe('settings return navigation', () => {
       expect(clearAllData).not.toHaveBeenCalled();
       await act(async () => button('Anuluj').click());
       expect(clearAllData).not.toHaveBeenCalled();
-      expect(useSettings.getState().liveSyllableCorrection).toBe(1.4);
+      expect(useSettings.getState().calibration.pl.liveSyllableCorrection).toBe(1.4);
       await act(async () => button('Usuń wszystkie dane', host).click());
       await act(async () => button('Usuń wszystkie dane', document.querySelector('[role="alertdialog"]')!).click());
       expect(clearAllData).toHaveBeenCalledOnce();
-      expect(useSettings.getState()).toMatchObject({ liveSyllableCorrection: 1, syllablesPerWord: 2.3 });
+      expect(useSettings.getState()).toMatchObject({ calibration: { pl: { liveSyllableCorrection: 1, syllablesPerWord: 2.3 } } });
       expect(host.textContent).toContain('Dane zostały usunięte.');
       expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     });
@@ -122,7 +143,7 @@ describe('settings return navigation', () => {
       await act(async () => button('Usuń wszystkie dane', host).click());
       await act(async () => button('Usuń wszystkie dane', document.querySelector('[role="alertdialog"]')!).click());
       expect(document.querySelector('[role="alertdialog"] [role="alert"]')?.textContent).toContain('Nie udało się usunąć danych.');
-      expect(useSettings.getState().liveSyllableCorrection).toBe(1.4);
+      expect(useSettings.getState().calibration.pl.liveSyllableCorrection).toBe(1.4);
       expect(host.textContent).not.toContain('Dane zostały usunięte.');
     });
   });

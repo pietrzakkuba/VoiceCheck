@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-function worker(state: ServiceWorkerState = 'activated') {
-  return Object.assign(new EventTarget(), { state, postMessage: vi.fn() });
+function worker(state: ServiceWorkerState = 'activated', ready = true) {
+  return Object.assign(new EventTarget(), {
+    state,
+    postMessage: vi.fn((message: { type?: string }, ports?: MessagePort[]) => {
+      if (message?.type === 'GET_OFFLINE_STATUS') ports?.[0]?.postMessage({ type: 'OFFLINE_STATUS', ready });
+    }),
+  });
+}
+
+async function settle() {
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe('PWA lifecycle', () => {
@@ -83,6 +92,35 @@ describe('PWA lifecycle', () => {
     const pwa = await import('./pwa');
     expect(await pwa.initializePwa()).toBe(false);
     expect(pwa.usePwa.getState().error).toContain('Nie udało');
+  });
+
+  it('reports offline readiness from the active worker', async () => {
+    const pwa = await import('./pwa');
+    await pwa.initializePwa();
+    await settle();
+    expect(pwa.usePwa.getState().offlineReady).toBe(true);
+    expect(registration.active.postMessage).toHaveBeenCalledWith({ type: 'GET_OFFLINE_STATUS' }, expect.any(Array));
+  });
+
+  it('is not offline-ready when cached files are incomplete', async () => {
+    registration.active = worker('activated', false);
+    const pwa = await import('./pwa');
+    await pwa.initializePwa();
+    await settle();
+    expect(pwa.usePwa.getState().offlineReady).toBe(false);
+  });
+
+  it('checks readiness once a first-install worker activates', async () => {
+    const installing = worker('installing');
+    registration.installing = installing;
+    const pwa = await import('./pwa');
+    await pwa.initializePwa();
+    registration.active = installing;
+    installing.state = 'activated';
+    installing.dispatchEvent(new Event('statechange'));
+    await settle();
+    expect(installing.postMessage).toHaveBeenCalledWith({ type: 'GET_OFFLINE_STATUS' }, expect.any(Array));
+    expect(pwa.usePwa.getState().offlineReady).toBe(true);
   });
 
   it('tracks offline and online without a reload', async () => {

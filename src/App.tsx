@@ -7,6 +7,7 @@ import { useApplyTheme } from '@/lib/theme';
 import { preloadVad } from '@/audio/capture';
 import { migrateLegacySessions } from '@/lib/sessionPipeline';
 import { PwaStatus } from '@/components/PwaStatus';
+import { useApplyLanguage, useT } from '@/i18n';
 
 const Presentations = lazy(() => import('@/pages/Presentations'));
 const History = lazy(() => import('@/pages/History'));
@@ -22,6 +23,8 @@ const home = <Navigate to="/speaking" replace />;
 
 export default function App() {
   useApplyTheme();
+  useApplyLanguage();
+  const t = useT();
   useEffect(() => {
     void preloadVad().then(() => migrateLegacySessions());
   }, []);
@@ -37,7 +40,7 @@ export default function App() {
             <Suspense
               fallback={
                 <div className="flex justify-center py-20 text-muted-foreground">
-                  <Loader2 className="size-6 animate-spin" aria-label="Ładowanie" />
+                  <Loader2 className="size-6 animate-spin" aria-label={t.common.loading} />
                 </div>
               }
             >
@@ -59,7 +62,7 @@ export default function App() {
             </Suspense>
           </main>
           <footer className="border-t px-4 py-4 text-center text-xs text-muted-foreground">
-            VoiceCheck · cała analiza odbywa się lokalnie w przeglądarce – nagrania nie opuszczają urządzenia.
+            {t.nav.footer}
           </footer>
         </div>
         <BottomTabBar />

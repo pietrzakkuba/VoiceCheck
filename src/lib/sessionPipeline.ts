@@ -1,4 +1,4 @@
-import type { AnalysisSettings, SpeechSegment, TrainingMode, TrainingSession } from '@/types';
+import type { AnalysisSettings, SessionWarning, SpeechSegment, TrainingMode, TrainingSession } from '@/types';
 import type { CaptureResult } from '@/audio/capture';
 import { sharedVadInstance } from '@/audio/capture';
 import { decodeToPcm16k, dbEnvelope, estimateOffsetMs } from '@/audio/decode';
@@ -8,13 +8,16 @@ import { detectNuclei } from '@/engine/syllableNuclei';
 import { refineSpeech, vadSegments } from '@/engine/segmentation';
 import { analyzeSession } from '@/engine/session';
 import { db, saveSession } from '@/store/db';
-import { getSettings } from '@/store/settings';
+import { calibrationFor, getSettings } from '@/store/settings';
+import { langOf, type Lang } from '@/i18n/lang';
 import { uid } from './utils';
 
 export interface SessionMeta {
   mode: TrainingMode;
   targetText?: string;
   presentationId?: string;
+  /** Speech language; selects the calibration used for the analysis. */
+  language: Lang;
 }
 
 /** Everything needed to (re)compute a session. */
@@ -31,13 +34,14 @@ interface Recording {
 
 const round = (v: number, f: number) => Math.round(v * f) / f;
 
-export function currentAnalysisSettings(): AnalysisSettings {
+export function currentAnalysisSettings(lang: Lang): AnalysisSettings {
   const s = getSettings();
+  const calibration = calibrationFor(lang, s);
   return {
     targetArticulationRate: [...s.targetArticulationRate] as [number, number],
     maxContinuousSpeechSeconds: s.maxContinuousSpeechSeconds,
-    syllableCorrection: s.liveSyllableCorrection,
-    syllablesPerWord: s.syllablesPerWord,
+    syllableCorrection: calibration.liveSyllableCorrection,
+    syllablesPerWord: calibration.syllablesPerWord,
   };
 }
 
@@ -74,11 +78,11 @@ function buildSession(
   rec: Recording,
   base: { id?: string; timestamp?: number; audioKey?: string; audioOffsetMs?: number } = {},
 ): TrainingSession {
-  const settings = currentAnalysisSettings();
+  const settings = currentAnalysisSettings(meta.language);
   const snrDb = speechSnr(rec.db, rec.speech, rec.noiseFloorDb);
   const a = analyse(rec, snrDb, settings);
   const warnings: string[] = [];
-  if (rec.clipping) warnings.push('Nagranie było przesterowane — odsuń się od mikrofonu lub zmniejsz jego czułość.');
+  if (rec.clipping) warnings.push('clipping' satisfies SessionWarning);
   const id = base.id ?? uid();
   return {
     schema: 2,
@@ -87,6 +91,7 @@ function buildSession(
     mode: meta.mode,
     targetText: meta.targetText,
     presentationId: meta.presentationId,
+    language: meta.language,
     deviceLabel: rec.deviceLabel,
     durationSeconds: rec.durationMs / 1000,
     audioKey: base.audioKey ?? `audio-${id}`,
@@ -138,7 +143,7 @@ export async function finalizeRecording(meta: SessionMeta, cap: CaptureResult): 
 export async function recomputeSession(id: string): Promise<TrainingSession | null> {
   const s = await db.sessions.get(id);
   if (!s || s.schema !== 2) return null;
-  const settings = currentAnalysisSettings();
+  const settings = currentAnalysisSettings(langOf(s));
   const a = analyse(
     { durationMs: s.durationSeconds * 1000, speech: s.tracks.speechSegments, nucleiMs: s.tracks.nucleiMs },
     s.metrics.snrDb,
@@ -205,7 +210,7 @@ export function migrateLegacySessions(): Promise<number> {
         const rec = await analyseStoredAudio(audio.blob, old.noiseFloorDb ?? -60);
         const mode: TrainingMode = old.mode === 'calibration' ? 'calibration' : old.targetText ? 'reading' : 'free_speech';
         const session = buildSession(
-          { mode, targetText: old.targetText },
+          { mode, targetText: old.targetText, language: 'pl' },
           { ...rec, deviceLabel: old.deviceLabel ?? '' },
           { id: old.id, timestamp: old.timestamp, audioKey: old.audioKey, audioOffsetMs: 0 },
         );

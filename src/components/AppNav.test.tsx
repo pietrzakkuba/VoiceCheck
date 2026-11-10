@@ -1,19 +1,34 @@
-import { describe, expect, it } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+// @vitest-environment jsdom
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { TooltipProvider } from '@/components/ui/overlay';
 import { activeTab, BottomTabBar, MobileHeader, Sidebar } from './AppNav';
+import { useSettings } from '@/store/settings';
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+window.matchMedia ??= ((query: string) => ({
+  matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {},
+})) as unknown as typeof window.matchMedia;
 
 function render(path: string, node: React.ReactNode) {
-  return renderToStaticMarkup(
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  act(() => root.render(
     <TooltipProvider><MemoryRouter initialEntries={[path]}>{node}</MemoryRouter></TooltipProvider>,
-  );
+  ));
+  const html = host.innerHTML;
+  act(() => root.unmount());
+  return html;
 }
 
 const currentLinks = (html: string) => [...html.matchAll(/<a[^>]*aria-current="page"[^>]*href="([^"]+)"|<a[^>]*href="([^"]+)"[^>]*aria-current="page"/g)]
   .map((m) => m[1] ?? m[2]);
 
 describe('app navigation', () => {
+  beforeEach(() => useSettings.setState({ appLanguage: 'pl' }));
+
   it.each([
     ['/speaking', 'speaking'],
     ['/presentations', 'presentations'],
@@ -46,13 +61,31 @@ describe('app navigation', () => {
     }
     expect(currentLinks(html)).toEqual(['/history']);
     expect(html).toContain('aria-label="Ciemny motyw"');
+    expect(html).toContain('aria-label="Język aplikacji"');
     expect(html).toContain('hidden md:flex');
   });
 
-  it('keeps calibration and settings in the mobile header', () => {
+  it('keeps settings, language and theme but not calibration in the mobile header', () => {
     const html = render('/settings', <MobileHeader />);
-    expect(html).toContain('href="/calibration"');
+    expect(html).not.toContain('href="/calibration"');
+    expect(html).toContain('href="/"');
     expect(currentLinks(html)).toEqual(['/settings']);
     expect(html).not.toContain('href="/history"');
+    expect(html).toContain('aria-label="Narzędzia"');
+    expect(html).toContain('aria-label="Język aplikacji"');
+    expect(html).toContain('aria-label="Ciemny motyw"');
+  });
+
+  it('renders English labels when the app language is English', () => {
+    useSettings.setState({ appLanguage: 'en' });
+    const bar = render('/speaking', <BottomTabBar />);
+    expect(bar).toContain('aria-label="Free speaking"');
+    expect(bar).toContain('aria-label="Main navigation"');
+    expect(bar).toContain('>Speaking<');
+    const side = render('/speaking', <Sidebar />);
+    for (const label of ['Presentations', 'History', 'Calibration', 'Settings', 'Theme']) {
+      expect(side).toContain(`>${label}<`);
+    }
+    expect(side).not.toContain('Prezentacje');
   });
 });

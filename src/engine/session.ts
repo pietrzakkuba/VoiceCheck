@@ -1,7 +1,6 @@
-import type { Pause, Phrase, PhraseTempo, SessionMetrics, SpeechSegment, Tip } from '@/types';
+import type { Pause, Phrase, PhraseTempo, SessionMetrics, SpeechSegment, Tip, TrainingSession } from '@/types';
 import { mergeSegments } from './segmentation';
 import { T } from './thresholds';
-import { formatMs } from '@/lib/utils';
 
 export interface SessionAnalysisInput {
   durationMs: number;
@@ -43,8 +42,6 @@ function countIn(sorted: number[], from: number, to: number): number {
   }
   return n;
 }
-
-const fmtRate = (r: number) => r.toFixed(1).replace('.', ',');
 
 /** Phrase/pause/tempo analysis of one recording. Pure, so sessions can be recomputed after recalibration. */
 export function analyzeSession(input: SessionAnalysisInput): SessionAnalysis {
@@ -110,29 +107,36 @@ export function analyzeSession(input: SessionAnalysisInput): SessionAnalysis {
   return { metrics, phrases, pauses, tips: buildTips(metrics, phrases, rated, input) };
 }
 
-function buildTips(m: SessionMetrics, phrases: Phrase[], rated: Phrase[], input: SessionAnalysisInput): Tip[] {
+/** Tips of a stored session, rebuilt from its metrics so they can be shown in any language. */
+export function sessionTips(s: Pick<TrainingSession, 'metrics' | 'phrases' | 'settings'>): Tip[] {
+  return buildTips(s.metrics, s.phrases, s.phrases.filter((p) => p.tempo !== 'short'), {
+    targetRate: s.settings.targetArticulationRate,
+    maxContinuousMs: s.settings.maxContinuousSpeechSeconds * 1000,
+  });
+}
+
+function buildTips(
+  m: SessionMetrics,
+  phrases: Phrase[],
+  rated: Phrase[],
+  input: Pick<SessionAnalysisInput, 'targetRate' | 'maxContinuousMs'>,
+): Tip[] {
   const tips: Tip[] = [];
   const [lo, hi] = input.targetRate;
   const limitS = Math.round(input.maxContinuousMs / 1000);
 
   if (m.phraseCount === 0 || m.speechMs < 2000) {
-    tips.push({
-      key: 'no_speech',
-      severity: 'info',
-      title: 'Za mało mowy do analizy',
-      detail: 'Nagranie jest bardzo krótkie lub ciche. Mów przez co najmniej kilkanaście sekund.',
-    });
+    tips.push({ key: 'no_speech', severity: 'info' });
     return tips;
   }
 
   if (m.overLimitPhrases > 0) {
-    const first = phrases.find((p) => p.overLimit)!;
+    const first = phrases.find((p) => p.overLimit);
     tips.push({
       key: 'breath_limit',
       severity: m.overLimitPhrases / m.phraseCount > 0.3 ? 'bad' : 'warn',
-      title: `Za długo bez oddechu: ${m.overLimitPhrases}×`,
-      detail: `Najdłuższy fragment trwał ${formatMs(m.longestPhraseMs)} (limit ${limitS} s). Zrób krótki wdech na przecinku lub końcu zdania.`,
-      atMs: first.startMs,
+      params: { count: m.overLimitPhrases, longestMs: m.longestPhraseMs, limitS },
+      atMs: first?.startMs,
     });
   }
 
@@ -140,16 +144,10 @@ function buildTips(m: SessionMetrics, phrases: Phrase[], rated: Phrase[], input:
     tips.push({
       key: 'too_fast',
       severity: m.articulationRate > hi + 1 ? 'bad' : 'warn',
-      title: 'Mówisz za szybko',
-      detail: `Średnio ${fmtRate(m.articulationRate)} sylaby/s, cel ${fmtRate(lo)}–${fmtRate(hi)}. Zwolnij i rób więcej krótkich pauz.`,
+      params: { rate: m.articulationRate, lo, hi },
     });
   } else if (m.articulationRate < lo - 1 && m.syllables > 0) {
-    tips.push({
-      key: 'too_slow',
-      severity: 'info',
-      title: 'Bardzo wolne tempo',
-      detail: `Średnio ${fmtRate(m.articulationRate)} sylaby/s, cel ${fmtRate(lo)}–${fmtRate(hi)}. Możesz mówić odrobinę płynniej.`,
-    });
+    tips.push({ key: 'too_slow', severity: 'info', params: { rate: m.articulationRate, lo, hi } });
   }
 
   if (rated.length >= 3 && m.fastPhrases / rated.length >= T.fastPhraseShare && !tips.some((t) => t.key === 'too_fast')) {
@@ -157,28 +155,17 @@ function buildTips(m: SessionMetrics, phrases: Phrase[], rated: Phrase[], input:
     tips.push({
       key: 'speeding_up',
       severity: 'warn',
-      title: 'Zdarza Ci się przyspieszać',
-      detail: `${m.fastPhrases} z ${rated.length} fraz powyżej ${fmtRate(hi)} sylaby/s. Zaznaczone na osi czasu na pomarańczowo.`,
+      params: { fast: m.fastPhrases, rated: rated.length, hi },
       atMs: first?.startMs,
     });
   }
 
   if (m.snrDb < T.snrWarnDb) {
-    tips.push({
-      key: 'noise',
-      severity: 'info',
-      title: 'Głośne otoczenie',
-      detail: 'Szum tła utrudnia pomiar — wyniki mogą być mniej dokładne. Nagrywaj w cichszym miejscu lub bliżej mikrofonu.',
-    });
+    tips.push({ key: 'noise', severity: 'info' });
   }
 
   if (!tips.some((t) => t.severity === 'bad' || t.severity === 'warn')) {
-    tips.unshift({
-      key: 'all_ok',
-      severity: 'ok',
-      title: 'Dobre tempo i regularne oddechy',
-      detail: 'Tak trzymaj! Spróbuj dłuższego nagrania albo trudniejszego tekstu.',
-    });
+    tips.unshift({ key: 'all_ok', severity: 'ok' });
   }
   return tips;
 }

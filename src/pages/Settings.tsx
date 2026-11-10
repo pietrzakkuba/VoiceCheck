@@ -8,14 +8,19 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { PwaInstall } from '@/components/PwaInstall';
 import { Label, NativeSelect, Slider, Switch, Alert } from '@/components/ui/primitives';
-import { useSettings } from '@/store/settings';
+import { DEFAULT_CALIBRATION, useSettings } from '@/store/settings';
+import { LanguageSelect } from '@/components/LanguageSelect';
+import { LANGS, LANGUAGE_NAMES, formatDate, formatDecimal, useT } from '@/i18n';
 import { clearAllData, getBaseline } from '@/store/db';
 import { listMicrophones } from '@/audio/capture';
 import { playBreathAlert, primeAlertAudio } from '@/lib/alert';
 
 export default function Settings() {
   const s = useSettings();
-  const baseline = useLiveQuery(() => getBaseline(), [], undefined);
+  const t = useT();
+  const ts = t.settings;
+  const lang = s.appLanguage;
+  const baselines = useLiveQuery(() => Promise.all(LANGS.map((l) => getBaseline(l))), [], undefined);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -25,8 +30,8 @@ export default function Settings() {
 
   const clear = async () => {
     await clearAllData();
-    s.set({ liveSyllableCorrection: 1, syllablesPerWord: 2.3 });
-    setMsg('Dane zostały usunięte.');
+    s.set({ calibration: structuredClone(DEFAULT_CALIBRATION) });
+    setMsg(ts.cleared);
   };
 
   const testAlert = () => {
@@ -38,50 +43,56 @@ export default function Settings() {
     <div className="space-y-5">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-3 h-9 text-muted-foreground">
-          <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
+          <Link to="/"><ArrowLeft className="size-4" aria-hidden /> {t.common.home}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><SettingsIcon className="size-6 text-primary" aria-hidden /> Ustawienia</h1>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><SettingsIcon className="size-6 text-primary" aria-hidden /> {ts.title}</h1>
       </div>
       {msg && <Alert variant="ok">{msg}</Alert>}
 
-      <PwaInstall />
-
       <Card>
-        <CardHeader><CardTitle>Wygląd</CardTitle></CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <Label htmlFor="theme">Motyw</Label>
-          <ThemeSwitch id="theme" />
+        <CardHeader><CardTitle>{ts.appearance}</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="theme">{ts.theme}</Label>
+            <ThemeSwitch id="theme" />
+          </div>
+          <LanguageSelect
+            value={lang}
+            onChange={(appLanguage) => s.set({ appLanguage })}
+            label={t.common.language.app}
+            hint={t.common.language.appHint}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Tempo i oddech</CardTitle>
-          <CardDescription>Progi używane na żywo podczas nagrania i w raportach.</CardDescription>
+          <CardTitle>{ts.paceTitle}</CardTitle>
+          <CardDescription>{ts.paceDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <Label>Docelowe tempo mowy</Label>
-              <span className="tabular-nums">{s.targetArticulationRate[0].toFixed(1)}–{s.targetArticulationRate[1].toFixed(1)} syl/s</span>
+              <Label>{ts.targetRate}</Label>
+              <span className="tabular-nums">{formatDecimal(s.targetArticulationRate[0], 1, lang)}–{formatDecimal(s.targetArticulationRate[1], 1, lang)} syl/s</span>
             </div>
-            <Slider min={3} max={7} step={0.1} minStepsBetweenThumbs={3} value={s.targetArticulationRate} onValueChange={(v) => s.set({ targetArticulationRate: [v[0], v[1]] })} aria-label="Docelowe tempo mowy" />
-            <p className="text-xs text-muted-foreground">Sylaby na sekundę, bez wliczania pauz. Typowe wyraźne tempo to 4,5–5,5.</p>
+            <Slider min={3} max={7} step={0.1} minStepsBetweenThumbs={3} value={s.targetArticulationRate} onValueChange={(v) => s.set({ targetArticulationRate: [v[0], v[1]] })} aria-label={ts.targetRate} />
+            <p className="text-xs text-muted-foreground">{ts.targetRateHint}</p>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <Label>Maksymalnie bez oddechu</Label>
+              <Label>{ts.maxBreath}</Label>
               <span className="tabular-nums">{s.maxContinuousSpeechSeconds} s</span>
             </div>
-            <Slider min={4} max={15} step={1} value={[s.maxContinuousSpeechSeconds]} onValueChange={([v]) => s.set({ maxContinuousSpeechSeconds: v })} aria-label="Maksymalnie bez oddechu" />
+            <Slider min={4} max={15} step={1} value={[s.maxContinuousSpeechSeconds]} onValueChange={([v]) => s.set({ maxContinuousSpeechSeconds: v })} aria-label={ts.maxBreath} />
           </div>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <Label htmlFor="breath-alert">Przypomnienie o oddechu</Label>
-              <p className="text-xs text-muted-foreground">Krótki dźwięk (i wibracja na telefonie), gdy przekroczysz limit mówienia bez oddechu.</p>
+              <Label htmlFor="breath-alert">{ts.breathAlert}</Label>
+              <p className="text-xs text-muted-foreground">{ts.breathAlertHint}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" onClick={testAlert} aria-label="Odtwórz przykładowe przypomnienie"><Volume2 className="size-4" /> Test</Button>
+              <Button size="sm" variant="ghost" onClick={testAlert} aria-label={ts.testAlert}><Volume2 className="size-4" /> {ts.test}</Button>
               <Switch id="breath-alert" checked={s.breathAlert} onCheckedChange={(v) => s.set({ breathAlert: v })} />
             </div>
           </div>
@@ -90,47 +101,66 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Mikrofon i kalibracja</CardTitle>
-          <CardDescription>
-            {baseline
-              ? `Skalibrowano ${new Date(baseline.createdAt).toLocaleDateString('pl-PL')} (${baseline.deviceLabel || 'mikrofon nieznany'}).`
-              : 'Brak kalibracji – pomiar tempa używa ustawień domyślnych.'}
-          </CardDescription>
+          <CardTitle>{ts.micTitle}</CardTitle>
+          <CardDescription>{ts.micDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="mic">Mikrofon</Label>
+            <Label htmlFor="mic">{ts.mic}</Label>
             <NativeSelect id="mic" className="mt-1.5" value={s.micDeviceId ?? ''} onChange={(e) => s.set({ micDeviceId: e.target.value || null })}>
-              <option value="">Domyślny systemowy</option>
-              {mics.map((m, i) => <option key={m.deviceId || i} value={m.deviceId}>{m.label || `Mikrofon ${i + 1}`}</option>)}
+              <option value="">{ts.defaultMic}</option>
+              {mics.map((m, i) => <option key={m.deviceId || i} value={m.deviceId}>{m.label || ts.micN(i + 1)}</option>)}
             </NativeSelect>
-            {mics.length > 0 && mics.every((m) => !m.label) && <p className="text-xs text-muted-foreground mt-1">Nazwy urządzeń pojawią się po pierwszym udzieleniu dostępu do mikrofonu.</p>}
+            {mics.length > 0 && mics.every((m) => !m.label) && <p className="text-xs text-muted-foreground mt-1">{ts.micNamesHint}</p>}
           </div>
-          <Button asChild variant="outline"><Link to="/calibration">{baseline ? 'Kalibruj ponownie' : 'Przeprowadź kalibrację'}</Link></Button>
+          <ul className="space-y-3">
+            {LANGS.map((l, i) => {
+              const baseline = baselines?.[i];
+              return (
+                <li key={l} className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium" lang={l}>{LANGUAGE_NAMES[l]}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {baseline
+                        ? ts.calibrated(formatDate(baseline.createdAt, lang), baseline.deviceLabel || ts.unknownMic)
+                        : ts.notCalibrated}
+                    </p>
+                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/calibration?lang=${l}`} aria-label={`${baseline ? ts.recalibrate : ts.calibrate}: ${LANGUAGE_NAMES[l]}`}>
+                      {baseline ? ts.recalibrate : ts.calibrate}
+                    </Link>
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
         </CardContent>
       </Card>
 
+      <PwaInstall />
+
       <Card>
-        <CardHeader><CardTitle>Dane</CardTitle><CardDescription>Wszystkie dane są przechowywane wyłącznie lokalnie (IndexedDB).</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{ts.dataTitle}</CardTitle><CardDescription>{ts.dataDescription}</CardDescription></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <ConfirmDialog
-            title="Usunąć wszystkie dane?"
-            description="Wszystkie prezentacje, sesje, nagrania i kalibracja zostaną usunięte z tego urządzenia. Tej operacji nie można cofnąć."
-            confirmLabel="Usuń wszystkie dane"
-            errorMessage="Nie udało się usunąć danych. Spróbuj ponownie."
+            title={ts.clearTitle}
+            description={ts.clearDescription}
+            confirmLabel={ts.clearConfirm}
+            errorMessage={ts.clearError}
             destructive
             onConfirm={clear}
           >
-            <Button variant="destructive">Usuń wszystkie dane</Button>
+            <Button variant="destructive">{ts.clearConfirm}</Button>
           </ConfirmDialog>
           <ConfirmDialog
-            title="Przywrócić ustawienia domyślne?"
-            description="Ustawienia aplikacji wrócą do wartości domyślnych. Prezentacje, sesje, nagrania, kalibracja i wybrany mikrofon zostaną zachowane."
-            confirmLabel="Przywróć ustawienia"
-            errorMessage="Nie udało się przywrócić ustawień. Spróbuj ponownie."
+            title={ts.resetTitle}
+            description={ts.resetDescription}
+            confirmLabel={ts.resetConfirm}
+            errorMessage={ts.resetError}
             onConfirm={s.reset}
           >
-            <Button variant="outline">Przywróć ustawienia domyślne</Button>
+            <Button variant="outline">{ts.resetButton}</Button>
           </ConfirmDialog>
         </CardContent>
       </Card>

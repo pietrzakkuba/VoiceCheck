@@ -3,25 +3,23 @@ import { AudioLines, BookOpenText, Crosshair, History, Presentation, Settings as
 import { buttonVariants } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/overlay';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
+import { LanguageSwitch } from '@/components/LanguageSwitch';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 export type TabId = 'speaking' | 'presentations' | 'history';
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-export const TABS: (NavItem & { id: TabId; short: string })[] = [
-  { id: 'speaking', to: '/speaking', label: 'Swobodne mówienie', short: 'Mówienie', icon: BookOpenText },
-  { id: 'presentations', to: '/presentations', label: 'Prezentacje', short: 'Prezentacje', icon: Presentation },
-  { id: 'history', to: '/history', label: 'Historia', short: 'Historia', icon: History },
+export const TABS: { id: TabId; to: string; icon: LucideIcon }[] = [
+  { id: 'speaking', to: '/speaking', icon: BookOpenText },
+  { id: 'presentations', to: '/presentations', icon: Presentation },
+  { id: 'history', to: '/history', icon: History },
 ];
 
-export const SECONDARY: NavItem[] = [
-  { to: '/calibration', label: 'Kalibracja', icon: Crosshair },
-  { to: '/settings', label: 'Ustawienia', icon: SettingsIcon },
+export type SecondaryId = 'calibration' | 'settings';
+
+export const SECONDARY: { id: SecondaryId; to: string; icon: LucideIcon }[] = [
+  { id: 'calibration', to: '/calibration', icon: Crosshair },
+  { id: 'settings', to: '/settings', icon: SettingsIcon },
 ];
 
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
@@ -44,16 +42,17 @@ function Logo() {
 
 /** Top bar on phones: logo + secondary actions. Hidden on md+ where the sidebar takes over. */
 export function MobileHeader() {
+  const t = useT();
   return (
     <header className="app-mobile-header sticky top-0 z-40 border-b bg-background/90 backdrop-blur md:hidden">
       <div className="px-4 min-h-14 py-2 flex items-center gap-2">
         <Logo />
-        <nav className="ml-auto flex items-center gap-1" aria-label="Narzędzia">
-          {SECONDARY.map(({ to, label, icon: Icon }) => (
-            <Tooltip key={to} content={label}>
+        <nav className="ml-auto flex items-center gap-1" aria-label={t.nav.tools}>
+          {SECONDARY.filter(({ id }) => id === 'settings').map(({ id, to, icon: Icon }) => (
+            <Tooltip key={to} content={t.nav.secondary[id]}>
               <NavLink
                 to={to}
-                aria-label={label}
+                aria-label={t.nav.secondary[id]}
                 className={cn(
                   buttonVariants({ variant: 'ghost', size: 'icon' }),
                   'text-muted-foreground aria-[current=page]:bg-accent aria-[current=page]:text-foreground',
@@ -63,6 +62,7 @@ export function MobileHeader() {
               </NavLink>
             </Tooltip>
           ))}
+          <LanguageSwitch />
           <ThemeSwitch />
         </nav>
       </div>
@@ -73,19 +73,20 @@ export function MobileHeader() {
 /** Fixed bottom tab bar on phones. */
 export function BottomTabBar() {
   const current = activeTab(useLocation().pathname);
+  const t = useT();
   return (
     <nav
-      aria-label="Główna nawigacja"
+      aria-label={t.nav.main}
       className="app-tabbar fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <ul className="grid grid-cols-3">
-        {TABS.map(({ id, to, label, short, icon: Icon }) => {
+        {TABS.map(({ id, to, icon: Icon }) => {
           const active = current === id;
           return (
             <li key={id}>
               <Link
                 to={to}
-                aria-label={label}
+                aria-label={t.nav.tabs[id]}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex flex-col items-center gap-1 rounded-md pt-2 pb-1.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -100,7 +101,7 @@ export function BottomTabBar() {
                 >
                   <Icon className="size-5" aria-hidden />
                 </span>
-                <span aria-hidden>{short}</span>
+                <span aria-hidden>{t.nav.tabsShort[id]}</span>
               </Link>
             </li>
           );
@@ -116,14 +117,15 @@ const sideItem =
 /** Sticky side navigation on md+ screens. */
 export function Sidebar() {
   const current = activeTab(useLocation().pathname);
+  const t = useT();
   return (
     <aside className="app-sidebar hidden md:flex sticky top-0 h-dvh w-60 shrink-0 flex-col gap-6 border-r bg-card/60 px-3 py-5">
       <div className="px-3">
         <Logo />
       </div>
-      <nav aria-label="Główna nawigacja">
+      <nav aria-label={t.nav.main}>
         <ul className="space-y-1">
-          {TABS.map(({ id, to, label, icon: Icon }) => {
+          {TABS.map(({ id, to, icon: Icon }) => {
             const active = current === id;
             return (
               <li key={id}>
@@ -138,7 +140,7 @@ export function Sidebar() {
                   )}
                 >
                   <Icon className={cn('size-5', active && 'text-primary')} aria-hidden />
-                  {label}
+                  {t.nav.tabs[id]}
                 </Link>
               </li>
             );
@@ -146,9 +148,9 @@ export function Sidebar() {
         </ul>
       </nav>
       <div className="mt-auto space-y-1 border-t pt-4">
-        <nav aria-label="Narzędzia">
+        <nav aria-label={t.nav.tools}>
           <ul className="space-y-1">
-            {SECONDARY.map(({ to, label, icon: Icon }) => (
+            {SECONDARY.map(({ id, to, icon: Icon }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -158,14 +160,18 @@ export function Sidebar() {
                   )}
                 >
                   <Icon className="size-4" aria-hidden />
-                  {label}
+                  {t.nav.secondary[id]}
                 </NavLink>
               </li>
             ))}
           </ul>
         </nav>
         <div className="flex items-center justify-between px-3 pt-2 text-sm text-muted-foreground">
-          <span>Motyw</span>
+          <span>{t.common.language.switcher}</span>
+          <LanguageSwitch />
+        </div>
+        <div className="flex items-center justify-between px-3 pt-1 text-sm text-muted-foreground">
+          <span>{t.settings.theme}</span>
           <ThemeSwitch />
         </div>
       </div>

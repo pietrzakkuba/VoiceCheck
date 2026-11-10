@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Crosshair } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert } from '@/components/ui/primitives';
@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
 import { TargetText } from '@/components/TargetText';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
-import { CALIBRATION_TEXT } from '@/data/calibrationText';
+import { CALIBRATION_TEXTS } from '@/data/calibrationText';
+import { LanguageSelect } from '@/components/LanguageSelect';
+import { formatDecimal, isLang, useLang, useT, type Lang } from '@/i18n';
 import { normalizeText } from '@/engine/normalize';
 import { countTextSyllables } from '@/engine/syllables';
 import { T } from '@/engine/thresholds';
@@ -43,8 +45,15 @@ export default function Calibration() {
   const ts = useTrainingSession();
   const nav = useNavigate();
   const set = useSettings((s) => s.set);
-  const tokens = useMemo(() => normalizeText(CALIBRATION_TEXT), []);
-  const textSyllables = useMemo(() => countTextSyllables(tokens.map((t) => t.word)), [tokens]);
+  const t = useT();
+  const appLang = useLang();
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('lang');
+  const lang: Lang = isLang(requested) ? requested : appLang;
+  const setLang = (l: Lang) => { setResult(null); setParams({ lang: l }, { replace: true }); };
+  const text = CALIBRATION_TEXTS[lang];
+  const tokens = useMemo(() => normalizeText(text, lang), [text, lang]);
+  const textSyllables = useMemo(() => countTextSyllables(tokens.map((tk) => tk.word), lang), [tokens, lang]);
   const [result, setResult] = useState<{ session: TrainingSession; ok: boolean; msg: string } | null>(null);
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
 
@@ -54,22 +63,28 @@ export default function Calibration() {
     if (!s) return;
     const b = calibrationFromSession(s, textSyllables, tokens.length);
     if (!b) {
-      setResult({ session: s, ok: false, msg: 'Nie udało się skalibrować — nagranie nie wygląda na przeczytanie całego tekstu. Przeczytaj go w całości i spróbuj ponownie.' });
+      setResult({ session: s, ok: false, msg: t.calibration.failed });
       return;
     }
-    await saveBaseline(b);
-    set({ liveSyllableCorrection: b.liveSyllableCorrection, syllablesPerWord: b.syllablesPerWord, onboardingDismissed: true });
+    await saveBaseline(lang, b);
+    set({
+      calibration: {
+        ...useSettings.getState().calibration,
+        [lang]: { liveSyllableCorrection: b.liveSyllableCorrection, syllablesPerWord: b.syllablesPerWord },
+      },
+      onboardingDismissed: true,
+    });
     const updated = (await recomputeSession(s.id)) ?? s;
     setResult({
       session: updated,
       ok: true,
-      msg: `Gotowe! Twoje naturalne tempo: ${b.articulationRate.toFixed(1).replace('.', ',')} sylaby/s. Pomiar tempa jest teraz dopasowany do Twojego głosu i mikrofonu.`,
+      msg: t.calibration.done(formatDecimal(b.articulationRate, 1, appLang)),
     });
-  }, [tsStop, set, textSyllables, tokens.length]);
+  }, [tsStop, set, textSyllables, tokens.length, lang, t, appLang]);
 
   const start = () => {
     setResult(null);
-    void ts.start({ mode: 'calibration', targetText: CALIBRATION_TEXT }, { calibrateMs: CALIBRATE_MS });
+    void ts.start({ mode: 'calibration', targetText: text, language: lang }, { calibrateMs: CALIBRATE_MS });
   };
 
   return (
@@ -77,32 +92,41 @@ export default function Calibration() {
       <div className="calibration-intro">
         {!active && (
           <Button asChild variant="ghost" size="sm" className="-ml-3 h-9 text-muted-foreground">
-            <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
+            <Link to="/"><ArrowLeft className="size-4" aria-hidden /> {t.common.home}</Link>
           </Button>
         )}
-        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><Crosshair className="size-6 text-primary" aria-hidden /> Kalibracja</h1>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><Crosshair className="size-6 text-primary" aria-hidden /> {t.calibration.title}</h1>
         <p className="calibration-intro-text text-muted-foreground text-sm mt-1">
-          Około minuty czytania. Znamy liczbę sylab w tym tekście, więc po nagraniu dopasujemy pomiar tempa do Twojego głosu i mikrofonu.
+          {t.calibration.intro}
         </p>
+        {!active && (
+          <LanguageSelect
+            className="mt-3 max-w-xs"
+            value={lang}
+            onChange={setLang}
+            label={t.common.language.calibration}
+            hint={t.common.language.calibrationHint}
+          />
+        )}
       </div>
       {!active && !result && (
         <Card className="calibration-instructions">
           <CardHeader>
-            <CardTitle>Jak to zrobić?</CardTitle>
-            <CardDescription>Usiądź w cichym miejscu, w zwykłej odległości od mikrofonu.</CardDescription>
+            <CardTitle>{t.calibration.howTitle}</CardTitle>
+            <CardDescription>{t.calibration.howDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             <ol className="list-decimal pl-5 space-y-1 text-sm">
-              <li>Po kliknięciu „Start” zachowaj 2 sekundy ciszy – zmierzymy szum tła.</li>
-              <li>Przeczytaj <strong>cały tekst</strong> swoim naturalnym tempem.</li>
-              <li>Na przecinkach i kropkach rób krótkie pauzy na oddech. Kliknij „Zakończ”, gdy skończysz.</li>
+              <li>{t.calibration.step1}</li>
+              <li>{t.calibration.step2Before}<strong>{t.calibration.step2Strong}</strong>{t.calibration.step2After}</li>
+              <li>{t.calibration.step3}</li>
             </ol>
           </CardContent>
         </Card>
       )}
       {(active || !result) && (
         <Card className="calibration-text-card">
-          <CardContent className="calibration-text" tabIndex={0} role="region" aria-label="Tekst kalibracyjny">
+          <CardContent className="calibration-text" tabIndex={0} role="region" aria-label={t.calibration.textRegion} lang={lang}>
             <TargetText tokens={tokens} />
           </CardContent>
         </Card>
@@ -118,16 +142,16 @@ export default function Calibration() {
           <div className="space-y-2">
             <p>{result.msg}</p>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => nav(`/session/${result.session.id}`)}>Zobacz raport</Button>
-              <Button size="sm" variant="outline" onClick={start}>Powtórz kalibrację</Button>
-              <Button size="sm" variant="ghost" onClick={() => nav('/')}>Strona główna</Button>
+              <Button size="sm" onClick={() => nav(`/session/${result.session.id}`)}>{t.calibration.viewReport}</Button>
+              <Button size="sm" variant="outline" onClick={start}>{t.calibration.repeat}</Button>
+              <Button size="sm" variant="ghost" onClick={() => nav('/')}>{t.common.home}</Button>
             </div>
           </div>
         </Alert>
       )}
       {!result && (
         <div className="calibration-controls">
-          <RecordControls phase={ts.phase} onStart={start} onStop={stop} startLabel="Start" />
+          <RecordControls phase={ts.phase} onStart={start} onStop={stop} startLabel={t.calibration.start} />
         </div>
       )}
       {active && (

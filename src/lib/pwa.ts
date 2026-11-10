@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getT } from '@/i18n';
 
 interface InstallPrompt extends Event {
   prompt(): Promise<void>;
@@ -9,6 +10,8 @@ interface PwaState {
   installed: boolean;
   canInstall: boolean;
   offline: boolean;
+  /** All app files are cached; the app opens and works without network. */
+  offlineReady: boolean;
   updateAvailable: boolean;
   error: string | null;
 }
@@ -17,6 +20,7 @@ export const usePwa = create<PwaState>(() => ({
   installed: false,
   canInstall: false,
   offline: false,
+  offlineReady: false,
   updateAvailable: false,
   error: null,
 }));
@@ -26,19 +30,53 @@ let registration: ServiceWorkerRegistration | null = null;
 let initialized = false;
 const isolationRetryKey = 'voicecheck-isolation-reload';
 
+function askOfflineStatus(worker: ServiceWorker): Promise<boolean> {
+  // Older workers never answer; the status then stays "not ready" until a newer worker takes over.
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const finish = (ready: boolean) => {
+      channel.port1.close();
+      resolve(ready);
+    };
+    channel.port1.onmessage = (event) => finish(event.data?.type === 'OFFLINE_STATUS' && event.data.ready === true);
+    try {
+      worker.postMessage({ type: 'GET_OFFLINE_STATUS' }, [channel.port2]);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
+/** Asks the active worker whether all app files are cached. Never throws. */
+export async function refreshOfflineReady(): Promise<void> {
+  const worker = registration?.active;
+  if (!worker || worker.state !== 'activated') {
+    usePwa.setState({ offlineReady: false });
+    return;
+  }
+  usePwa.setState({ offlineReady: await askOfflineStatus(worker) });
+}
+
 function observeRegistration(next: ServiceWorkerRegistration) {
   registration = next;
   const checkWaiting = () => {
     usePwa.setState({ updateAvailable: Boolean(next.waiting && navigator.serviceWorker.controller) });
   };
+  const watchInstalling = (worker: ServiceWorker | null) => {
+    worker?.addEventListener('statechange', () => {
+      checkWaiting();
+      if (worker.state === 'activated') void refreshOfflineReady();
+    });
+  };
   checkWaiting();
-  next.addEventListener('updatefound', () => {
-    const worker = next.installing;
-    worker?.addEventListener('statechange', checkWaiting);
-  });
+  void refreshOfflineReady();
+  next.addEventListener('updatefound', () => watchInstalling(next.installing));
   // A worker might already be installing when register() resolves.
-  next.installing?.addEventListener('statechange', checkWaiting);
-  navigator.serviceWorker.addEventListener('controllerchange', checkWaiting);
+  watchInstalling(next.installing);
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    checkWaiting();
+    void refreshOfflineReady();
+  });
 }
 
 function waitForActivation(worker: ServiceWorker): Promise<void> {
@@ -51,9 +89,9 @@ function waitForActivation(worker: ServiceWorker): Promise<void> {
     };
     const check = () => {
       if (worker.state === 'activated') finish();
-      else if (worker.state === 'redundant') finish(new Error('Service worker został odrzucony.'));
+      else if (worker.state === 'redundant') finish(new Error(getT().pwa.errors.workerRejected));
     };
-    const timer = setTimeout(() => finish(new Error('Przekroczono czas aktywacji PWA.')), 10000);
+    const timer = setTimeout(() => finish(new Error(getT().pwa.errors.activationTimeout)), 10000);
     worker.addEventListener('statechange', check);
     check();
   });
@@ -80,7 +118,7 @@ export async function initializePwa(): Promise<boolean> {
 
   if (!import.meta.env.PROD) return false;
   if (!window.isSecureContext || !('serviceWorker' in navigator)) {
-    usePwa.setState({ error: 'PWA wymaga HTTPS (lub localhost) i przeglądarki obsługującej service workery.' });
+    usePwa.setState({ error: getT().pwa.errors.unsupported });
     return false;
   }
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -92,7 +130,7 @@ export async function initializePwa(): Promise<boolean> {
         return result;
       }),
       new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error('Przekroczono czas rejestracji PWA.')), 10000);
+        timeout = setTimeout(() => reject(new Error(getT().pwa.errors.registrationTimeout)), 10000);
       }),
     ]);
     clearTimeout(timeout);
@@ -111,7 +149,7 @@ export async function initializePwa(): Promise<boolean> {
   } catch (error) {
     clearTimeout(timeout);
     console.error('[PWA]', error);
-    usePwa.setState({ error: 'Nie udało się przygotować PWA. Możesz nadal używać strony; aby ponowić próbę, odśwież ją po zakończeniu pracy.' });
+    usePwa.setState({ error: getT().pwa.errors.setupFailed });
   }
   return false;
 }
@@ -126,14 +164,14 @@ export async function installPwa(): Promise<void> {
     await prompt.userChoice;
   } catch (error) {
     console.error('[PWA install]', error);
-    usePwa.setState({ error: 'Nie udało się otworzyć instalacji. Spróbuj zainstalować aplikację z menu przeglądarki.' });
+    usePwa.setState({ error: getT().pwa.errors.installFailed });
   }
 }
 
 export async function applyPwaUpdate(): Promise<void> {
   const worker = registration?.waiting;
   if (!worker) {
-    throw new Error('Aktualizacja nie jest już dostępna. Odśwież aplikację po zakończeniu pracy.');
+    throw new Error(getT().pwa.errors.updateGone);
   }
   await new Promise<void>((resolve, reject) => {
     const cleanup = () => {
@@ -149,11 +187,11 @@ export async function applyPwaUpdate(): Promise<void> {
     const check = () => {
       if (worker.state !== 'redundant') return;
       cleanup();
-      reject(new Error('Nie udało się aktywować aktualizacji.'));
+      reject(new Error(getT().pwa.errors.updateFailed));
     };
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error('Przekroczono czas aktualizacji.'));
+      reject(new Error(getT().pwa.errors.updateTimeout));
     }, 10000);
     navigator.serviceWorker.addEventListener('controllerchange', changed);
     worker.addEventListener('statechange', check);

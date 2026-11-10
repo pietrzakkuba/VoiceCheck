@@ -2,23 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { CardContent } from '@/components/ui/card';
 import { readingChunks, presentationText } from '@/lib/presentationDocument';
 import { PresentationContent } from '@/components/PresentationContent';
+import { useT, type Lang } from '@/i18n';
 import type { PresentationDocument } from '@/types';
 
-export function RehearsalText({ text, document, syllablesRead, autoScroll, onAutoScrollChange, children }: {
+export function RehearsalText({ text, document, lang = 'pl', syllablesRead, autoScroll, onAutoScrollChange, children }: {
   text: string;
   document?: PresentationDocument;
+  /** Language of the presentation text; drives syllable-based progress and the `lang` attribute. */
+  lang?: Lang;
   syllablesRead: number | null;
   autoScroll: boolean;
   onAutoScrollChange: (enabled: boolean) => void;
   children: ReactNode;
 }) {
+  const t = useT();
   const viewportRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const expectedScrollTop = useRef(0);
   const interruptedRef = useRef(false);
   const plainText = useMemo(() => presentationText(text, document), [text, document]);
-  const chunks = useMemo(() => readingChunks(plainText), [plainText]);
+  const chunks = useMemo(() => readingChunks(plainText, lang), [plainText, lang]);
 
   const disableAutoScroll = useCallback(() => {
     if (interruptedRef.current) return;
@@ -85,12 +89,12 @@ export function RehearsalText({ text, document, syllablesRead, autoScroll, onAut
 
   return (
     <div className="rehearsal-text overflow-hidden rounded-[inherit] p-1 text-card-foreground">
-      <div ref={viewportRef} className="rehearsal-viewport max-h-[65vh] overflow-y-auto rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
+      <div ref={viewportRef} className="rehearsal-viewport max-h-[65vh] overflow-y-auto rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label={t.presentations.rehearsal.readingRegion}>
         <div ref={headerRef} className="rehearsal-indicators sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
           {children}
         </div>
         <CardContent className="py-5">
-          <div ref={textRef}>
+          <div ref={textRef} lang={lang}>
             <PresentationContent text={plainText} document={document} chunks={chunks}
               className="text-xl md:text-2xl leading-relaxed md:leading-relaxed" />
           </div>

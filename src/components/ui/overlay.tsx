@@ -2,12 +2,14 @@ import * as React from 'react';
 import { Dialog as D, Tooltip as Tt } from 'radix-ui';
 import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 export const Dialog = D.Root;
 export const DialogTrigger = D.Trigger;
 export const DialogClose = D.Close;
 
 export function DialogContent({ className, children, ...props }: React.ComponentProps<typeof D.Content>) {
+  const t = useT().ui;
   return (
     <D.Portal>
       <D.Overlay className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50" />
@@ -19,7 +21,7 @@ export function DialogContent({ className, children, ...props }: React.Component
         {...props}
       >
         {children}
-        <D.Close className="absolute top-4 right-4 rounded-xs opacity-70 hover:opacity-100" aria-label="Zamknij">
+        <D.Close className="absolute top-4 right-4 rounded-xs opacity-70 hover:opacity-100" aria-label={t.close}>
           <XIcon className="size-4" />
         </D.Close>
       </D.Content>

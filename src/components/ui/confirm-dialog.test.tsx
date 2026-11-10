@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Button } from './button';
 import { ConfirmDialog } from './confirm-dialog';
+import { useSettings } from '@/store/settings';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -11,6 +12,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  useSettings.setState({ appLanguage: 'pl' });
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);

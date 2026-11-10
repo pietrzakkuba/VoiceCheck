@@ -240,3 +240,62 @@ describe('presentation editor persistence', () => {
     expectSaveDisabled(false);
   });
 });
+
+describe('presentation language', () => {
+  afterEach(() => useSettings.setState({ appLanguage: 'pl' }));
+
+  function languageSelect() {
+    const select = host.querySelector<HTMLSelectElement>('select');
+    if (!select) throw new Error('Missing language select');
+    return select;
+  }
+
+  function chooseLanguage(value: string) {
+    const select = languageSelect();
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(select, value);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  it('defaults a new presentation to the app language and saves it', async () => {
+    useSettings.setState({ appLanguage: 'en' });
+    mocks.id = 'new';
+    const editor = await mount();
+    expect(languageSelect().value).toBe('en');
+    expect(host.textContent).toContain('Presentation language');
+    expect(host.textContent).toContain('New presentation');
+    expect(host.querySelector('.tiptap')?.getAttribute('lang')).toBe('en');
+    await act(async () => {
+      setTitle('Quarterly results');
+      editor.commands.insertContent('<p>Good morning everyone.</p>');
+    });
+    const target = useSettings.getState().targetArticulationRate;
+    expect(host.textContent).toContain(`Estimated reading time: approx. ${formatDuration(textStats('Good morning everyone.', target, 'en').estimatedSeconds)}`);
+    await act(async () => clickSave('Save'));
+    expect(stored.language).toBe('en');
+    expect(stored.title).toBe('Quarterly results');
+  });
+
+  it('shows Polish for a stored presentation without a language and saves the chosen language', async () => {
+    useSettings.setState({ appLanguage: 'en' });
+    await mount();
+    expect(languageSelect().value).toBe('pl');
+    expect(host.textContent).toContain('Edit presentation');
+    await act(async () => chooseLanguage('en'));
+    expect(host.querySelector('.tiptap')?.getAttribute('lang')).toBe('en');
+    await act(async () => clickSave('Save'));
+    expect(stored.language).toBe('en');
+  });
+
+  it('keeps Polish labels and saves Polish by default in the Polish app', async () => {
+    mocks.id = 'new';
+    const editor = await mount();
+    expect(languageSelect().value).toBe('pl');
+    expect(host.textContent).toContain('Język prezentacji');
+    await act(async () => {
+      setTitle('Tytuł');
+      editor.commands.insertContent('<p>Dzień dobry.</p>');
+    });
+    await act(async () => clickSave());
+    expect(stored.language).toBe('pl');
+  });
+});

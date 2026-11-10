@@ -4,11 +4,18 @@ Nazwa aplikacji i projektu to **VoiceCheck**; pakiet npm i prefiks eksportowanyc
 zapisu `voicecheck`. Starsze identyfikatory lokalnej bazy (`clearvoice`) i ustawień
 (`clearvoice_settings_v2`) pozostają bez zmian, aby zachować dostęp do zapisanych danych.
 
-Trener wystąpień i prezentacji po polsku: ćwicz wygłaszanie własnego tekstu, kontrolując tempo i oddech. Działa
+Trener wystąpień i prezentacji po polsku i angielsku: ćwicz wygłaszanie własnego tekstu, kontrolując tempo i oddech. Działa
 w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opuszczają komputera.
 
 ## Funkcje
 
+- **Języki (polski i angielski)**: interfejs domyślnie przyjmuje język przeglądarki (polski dla `pl*`,
+  w pozostałych przypadkach angielski); zmienisz go przełącznikiem PL/EN w nawigacji lub w Ustawieniach.
+  Każda prezentacja ma własny język (nowa domyślnie w języku aplikacji); od niego zależą liczenie sylab, słów
+  i liczb w tekście, prognoza czasu oraz język zapisany w sesji. Swobodne mówienie domyślnie używa języka
+  aplikacji, z możliwością zmiany przed nagraniem. Kalibracja jest osobna dla każdego języka (własny tekst
+  i wynik), a tempo docelowe i limit oddechu są wspólne. Wskazówki w raporcie zawsze wyświetlają się w bieżącym
+  języku aplikacji. Starsze prezentacje i sesje bez zapisanego języka są traktowane jako polskie.
 - **Biblioteka prezentacji**: zapisywanie tekstów wystąpień z tytułem; aplikacja
   wyświetla szacowany czas czytania w Twoim tempie docelowym z uwzględnieniem pauz, bez ręcznego limitu czasu.
   Prognoza dzieli liczbę sylab przez środek zakresu tempa docelowego i zakłada, że mowa zajmuje 70%,
@@ -103,7 +110,7 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 - **Tempo**: tempo artykulacji (sylaby/s bez pauz), porównywane z celem (domyślnie 4,5–5,5 syl/s). Na żywo liczone
   tak samo jak w raporcie, wygładzane (ok. 2 s) i z histerezą stref, żeby wskaźnik nie skakał.
 
-Kalibracja (minuta czytania znanego tekstu) dopasowuje liczenie sylab do głosu i mikrofonu. Sesje z poprzedniej
+Kalibracja (minuta czytania znanego tekstu w wybranym języku) dopasowuje liczenie sylab do głosu i mikrofonu. Sesje z poprzedniej
 wersji aplikacji są przy starcie przeliczane tą samą metodą.
 
 ## Uruchomienie
@@ -142,11 +149,13 @@ zainstalować z Ustawień, gdy przeglądarka udostępnia przycisk instalacji, lu
 Na iPhonie/iPadzie otwórz stronę w Safari i wybierz **Udostępnij → Do ekranu początkowego**.
 Możliwość instalacji i obsługa mikrofonu zależą od przeglądarki. Wersja deweloperska nie rejestruje PWA.
 
-**Podstawowy tryb offline** jest dostępny po pierwszej poprawnej wizycie online i aktywacji service workera.
-Przy otwarciu lub odświeżeniu dowolnego adresu bez sieci pojawia się ekran z przyciskiem „Spróbuj ponownie”.
-Nie jest to pełna aplikacja offline: duże modele audio, pliki WASM i cały interfejs nie są pobierane do cache na zapas.
-Utrata połączenia w już otwartej aplikacji pokazuje komunikat, ale nie zasłania pracy i nie przerywa nagrania.
-Pierwsze uruchomienie na urządzeniu bez internetu nie jest obsługiwane.
+**Pełny tryb offline** jest dostępny po pierwszej poprawnej wizycie online i aktywacji service workera.
+Service worker pobiera wtedy do pamięci podręcznej całą aplikację: interfejs, model Silero VAD i pliki WASM
+onnxruntime (jednorazowo ok. 15 MB; przy aktualizacjach tylko zmienione pliki). Później aplikacja otwiera się
+pod dowolnym adresem i działa bez internetu – nagrywanie, analiza, raporty i historia odbywają się lokalnie.
+Utrata połączenia nie wyświetla wtedy żadnego komunikatu. Stan „Gotowa do pracy offline” widać w Ustawieniach.
+Pierwsze uruchomienie na urządzeniu bez internetu nie jest obsługiwane. Ekran „Brak połączenia”
+(`offline.html`) pojawia się tylko, gdy pliki aplikacji nie zostały jeszcze pobrane.
 
 **Aktualizacje**: po wykryciu nowej wersji pojawia się komunikat. Zakończ nagranie i zapisz edytowany tekst,
 następnie wybierz „Aktualizuj” i potwierdź przeładowanie. Pozostałe otwarte okna nie przeładowują się automatycznie.

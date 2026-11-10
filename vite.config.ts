@@ -22,8 +22,17 @@ export default defineConfig({
       filename: 'sw.ts',
       injectRegister: false,
       injectManifest: {
-        // index.html revisions make UI-only deployments detectable without caching the app.
-        globPatterns: ['offline.html', 'index.html'],
+        // The whole app (UI, VAD model, WASM runtime) is precached so it opens and works fully offline.
+        globPatterns: [
+          'index.html',
+          'offline.html',
+          'favicon.svg',
+          'assets/**/*.{js,css}',
+          'vendor/*.{mjs,wasm,onnx}',
+          'icons/*.png',
+        ],
+        // ONNX Runtime WASM is ~12 MB.
+        maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
       },
       includeManifestIcons: false,
       manifest: {
@@ -58,5 +67,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
+    setupFiles: ['src/test/setup.ts'],
   },
 });

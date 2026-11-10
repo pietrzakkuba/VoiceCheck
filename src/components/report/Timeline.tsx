@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { Phrase, PhraseTempo, TrainingSession } from '@/types';
 import { T } from '@/engine/thresholds';
+import { formatDecimal, useLang, useT } from '@/i18n';
 
 const PX_PER_S = 60;
 const WAVE_Y = 8;
@@ -35,6 +36,8 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
   onSelectPhrase: (i: number) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const tl = useT().report.timeline;
+  const lang = useLang();
   const durMs = Math.max(1, session.durationSeconds * 1000);
   const W = Math.max(640, (durMs / 1000) * PX_PER_S);
   const x = (ms: number) => (ms / durMs) * W;
@@ -80,7 +83,7 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
           width={W}
           height={H}
           role="img"
-          aria-label="Oś czasu nagrania: przebieg, frazy między oddechami i tempo każdej frazy"
+          aria-label={tl.label}
           className="block cursor-pointer select-none"
           onClick={(e) => onSeek((e.nativeEvent.offsetX / W) * durMs)}
         >
@@ -92,7 +95,7 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
           {session.pauses.map((p, i) => (
             <g key={`p${i}`}>
               <rect x={x(p.startMs)} y={BREATH_Y} width={Math.max(2, x(p.endMs) - x(p.startMs))} height={BREATH_H} rx={2} fill="var(--color-info)" opacity={p.kind === 'long' ? 0.35 : 0.8}>
-                <title>{`${p.kind === 'long' ? 'Długa pauza' : 'Oddech'} ${((p.endMs - p.startMs) / 1000).toFixed(1)} s`}</title>
+                <title>{tl.pause(p.kind === 'long', formatDecimal((p.endMs - p.startMs) / 1000, 1, lang))}</title>
               </rect>
             </g>
           ))}
@@ -108,7 +111,7 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
               opacity={0.75}
               onClick={(e) => { e.stopPropagation(); onSelectPhrase(i); }}
             >
-              <title>{`Fraza ${i + 1}: ${((p.endMs - p.startMs) / 1000).toFixed(1)} s bez oddechu${p.overLimit ? ' — za długo!' : ''}`}</title>
+              <title>{tl.phraseBreath(i + 1, formatDecimal((p.endMs - p.startMs) / 1000, 1, lang), p.overLimit)}</title>
             </rect>
           ))}
 
@@ -127,7 +130,7 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
                 strokeLinecap="round"
                 strokeDasharray={p.tempo === 'short' ? '3 4' : undefined}
               >
-                <title>{`Fraza ${i + 1}: ${p.rate.toFixed(1)} syl/s${p.tempo === 'short' ? ' (za krótka do pewnego pomiaru)' : ''}`}</title>
+                <title>{tl.phraseRate(i + 1, formatDecimal(p.rate, 1, lang), p.tempo === 'short')}</title>
               </line>
               {p.tempo !== 'short' && x(p.endMs) - x(p.startMs) > 34 && (
                 <text x={x(p.startMs)} y={rateY(p.rate) - 6} fontSize={10} fill="var(--color-muted-foreground)">{p.rate.toFixed(1)}</text>
@@ -148,11 +151,11 @@ export function Timeline({ session, currentMs, onSeek, onSelectPhrase }: {
         </svg>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span><span className="inline-block w-3 h-1.5 rounded bg-ok mr-1" />fraza w limicie oddechu</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-warn mr-1" />blisko limitu</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-bad mr-1" />za długo bez oddechu / za szybko</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-info mr-1" />oddech (pauza)</span>
-        <span><span className="inline-block w-3 h-1.5 rounded bg-ok/20 mr-1" />docelowe tempo {lo}–{hi} syl/s</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-ok mr-1" />{tl.legendOk}</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-warn mr-1" />{tl.legendWarn}</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-bad mr-1" />{tl.legendBad}</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-info mr-1" />{tl.legendBreath}</span>
+        <span><span className="inline-block w-3 h-1.5 rounded bg-ok/20 mr-1" />{tl.legendTarget(formatDecimal(lo, 1, lang), formatDecimal(hi, 1, lang))}</span>
       </div>
     </div>
   );

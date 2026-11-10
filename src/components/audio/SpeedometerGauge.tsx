@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { getT, useT } from '@/i18n';
 
 const MAX = 8;
 const DEFAULT_TARGET: [number, number] = [4.5, 5.5];
@@ -15,14 +16,16 @@ function zones([lo, hi]: [number, number]): { from: number; to: number; color: s
 export type RateZoneKey = 'none' | 'very_slow' | 'calm' | 'ok' | 'fast' | 'too_fast';
 
 const ZONE_ORDER: RateZoneKey[] = ['very_slow', 'calm', 'ok', 'fast', 'too_fast'];
-const ZONE_INFO: Record<RateZoneKey, { label: string; cls: string }> = {
-  none: { label: 'Mów dalej…', cls: 'text-muted-foreground' },
-  very_slow: { label: 'Bardzo wolno', cls: 'text-info' },
-  calm: { label: 'Spokojnie', cls: 'text-ok' },
-  ok: { label: 'Dobre tempo', cls: 'text-ok' },
-  fast: { label: 'Szybko', cls: 'text-warn' },
-  too_fast: { label: 'Za szybko!', cls: 'text-bad' },
+const ZONE_CLS: Record<RateZoneKey, string> = {
+  none: 'text-muted-foreground',
+  very_slow: 'text-info',
+  calm: 'text-ok',
+  ok: 'text-ok',
+  fast: 'text-warn',
+  too_fast: 'text-bad',
 };
+
+const zoneInfo = (key: RateZoneKey) => ({ key, label: getT().audio.zones[key], cls: ZONE_CLS[key] });
 
 function zoneKey(rate: number, [lo, hi]: [number, number]): RateZoneKey {
   if (rate < lo - 1) return 'very_slow';
@@ -42,14 +45,14 @@ export function rateZone(
   prev?: RateZoneKey,
   hysteresis = 0,
 ): { key: RateZoneKey; label: string; cls: string } {
-  if (rate === null) return { key: 'none', ...ZONE_INFO.none };
+  if (rate === null) return zoneInfo('none');
   let key = zoneKey(rate, target);
   if (prev && prev !== 'none' && prev !== key && hysteresis > 0) {
     const up = ZONE_ORDER.indexOf(key) > ZONE_ORDER.indexOf(prev);
     const nudged = zoneKey(up ? rate - hysteresis : rate + hysteresis, target);
     if (nudged === prev) key = prev;
   }
-  return { key, ...ZONE_INFO[key] };
+  return zoneInfo(key);
 }
 
 const R = 80;
@@ -67,11 +70,12 @@ const arc = (from: number, to: number) => {
 
 /** Live articulation-rate speedometer (4.3). */
 export function SpeedometerGauge({ rate, wpm, target, className }: { rate: number | null; wpm: number | null; target?: [number, number]; className?: string }) {
+  const t = useT().audio;
   const z = rateZone(rate, target);
   const [nx, ny] = pt(rate ?? 0, R - 18);
   return (
     <div className={cn('flex flex-col items-center', className)}>
-      <svg viewBox="0 0 200 110" className="w-full max-w-64" role="img" aria-label={rate !== null ? `Tempo ${rate.toFixed(1)} sylaby na sekundę` : 'Tempo: za mało danych'}>
+      <svg viewBox="0 0 200 110" className="w-full max-w-64" role="img" aria-label={rate !== null ? t.gauge.label(rate.toFixed(1)) : t.gauge.noData}>
         {zones(target ?? DEFAULT_TARGET).map((zn) => (
           <path key={zn.from} d={arc(zn.from, zn.to)} stroke={zn.color} strokeWidth={14} fill="none" opacity={0.85} />
         ))}
@@ -88,7 +92,7 @@ export function SpeedometerGauge({ rate, wpm, target, className }: { rate: numbe
       <div className="text-center -mt-1">
         <div className="text-3xl font-semibold tabular-nums">{rate !== null ? rate.toFixed(1) : '–'}<span className="text-sm font-normal text-muted-foreground"> syl/s</span></div>
         <div className={cn('text-sm font-medium', z.cls)}>{z.label}</div>
-        <div className="text-xs text-muted-foreground tabular-nums">≈ {wpm !== null ? Math.round(wpm) : '–'} słów/min</div>
+        <div className="text-xs text-muted-foreground tabular-nums">{t.gauge.wpm(wpm !== null ? String(Math.round(wpm)) : '–')}</div>
       </div>
     </div>
   );

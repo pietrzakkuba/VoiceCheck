@@ -18,7 +18,7 @@ vi.mock('dexie', () => ({
     };
     audio = { delete: vi.fn(), clear: vi.fn(), bulkDelete: vi.fn() };
     transaction = vi.fn(async (_mode, _sessions, _audio, action: () => Promise<void>) => action());
-    version() { return { stores: vi.fn() }; }
+    version() { return { stores: () => ({ upgrade: vi.fn() }) }; }
   },
 }));
 
