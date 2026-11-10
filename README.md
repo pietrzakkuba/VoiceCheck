@@ -10,7 +10,10 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 ## Funkcje
 
 - **Biblioteka prezentacji**: zapisywanie tekstów wystąpień z tytułem; aplikacja
-  wyświetla szacowany czas czytania w Twoim tempie docelowym (bez pauz), bez ręcznego limitu czasu.
+  wyświetla szacowany czas czytania w Twoim tempie docelowym z uwzględnieniem pauz, bez ręcznego limitu czasu.
+  Prognoza dzieli liczbę sylab przez środek zakresu tempa docelowego i zakłada, że mowa zajmuje 70%,
+  a oddechy i pauzy 30% całego czasu (około 43% dłużej niż sama artykulacja).
+  To orientacyjne założenie, nie pomiar indywidualnych pauz; prognoza nie obejmuje kalibracji mikrofonu.
   Edytor pozwala stosować pogrubienie, kursywę, dwa poziomy nagłówków, listy punktowane i numerowane
   oraz akapity. Podgląd i tekst podczas próby zachowują formatowanie, również po ponownym otwarciu.
   Limit 20 000 znaków i statystyki dotyczą samego tekstu, bez znaczników formatowania.
@@ -27,7 +30,7 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   Kliknięcie tytułu w bibliotece otwiera sam podgląd, bez nagrywania.
   Każda sesja jest zapisywana i powiązana z prezentacją.
   Tekst podczas prezentowania zachowuje oryginalne podziały wierszy i puste linie.
-  Domyślnie przewija się automatycznie zgodnie z postępem szacowanym z wykrytych sylab,
+  Na komputerze domyślnie przewija się automatycznie zgodnie z postępem szacowanym z wykrytych sylab,
   bez przewijania podczas ciszy i kalibracji. Przełącznik na ekranie treningu pozwala wyłączyć
   tę funkcję; wybór jest zapamiętywany. Nie jest to rozpoznawanie wypowiadanych słów.
   Ręczne przewinięcie wyłącza automatyczne przewijanie i jego przełącznik. Ponowne włączenie
@@ -35,15 +38,18 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   Przełącznik „Nie wygaszaj ekranu” (domyślnie włączony, zapamiętywany) utrzymuje ekran włączony
   podczas prezentowania dzięki Screen Wake Lock API; blokada jest zwalniana po zakończeniu próby
   i odnawiana po powrocie do karty. W przeglądarkach bez obsługi tego API przełącznik jest nieaktywny.
+  Na telefonie (także w poziomie) oba przełączniki są ukryte: tekst przewija się wyłącznie ręcznie,
+  a blokada wygaszania ekranu jest wyłączona. Ustawienia dla komputera pozostają zapamiętane.
   Szacowany czas czytania jest widoczny w bibliotece, edytorze oraz przed próbą i podczas nagrania.
   Licznik przy tekście i w raporcie pokazuje czas całej sesji (z pauzami i kalibracją mikrofonu),
   bez odliczania i ostrzeżeń o przekroczeniu czasu. Dawne ręczne limity są ignorowane.
   Raport próby obok czasu sesji pokazuje szacowany czas czytania jej zapisanego tekstu,
-  obliczony według tempa docelowego zapisanego w sesji, bez pauz.
+  obliczony według tempa docelowego zapisanego w sesji, z uwzględnieniem szacowanych pauz.
 - **Swobodne mówienie**: karta nad biblioteką prezentacji (adres `/speaking`) pozwala czytać tekst spoza
   aplikacji (kartka, inny ekran) lub mówić z pamięci. Aplikacja pokazuje wtedy tylko panele tempa i oddechu
   oraz licznik czasu (bez limitu); sesja trafia do historii z pełnym raportem.
-  Działa tu ten sam przełącznik „Nie wygaszaj ekranu” co w trybie prezentacji (wspólne ustawienie).
+  Na komputerze działa tu ten sam przełącznik „Nie wygaszaj ekranu” co w trybie prezentacji
+  (wspólne ustawienie). Na telefonie opcja jest ukryta i nie blokuje wygaszania ekranu.
 - **Na żywo podczas nagrania**: panel tempa (sylaby/s), pasek oddechu, przebieg fali,
   ostrzeżenia o szumie i przesterowaniu. Po przekroczeniu limitu mówienia bez oddechu aplikacja odtwarza krótki
   dźwięk (i wibrację na telefonie).
@@ -88,12 +94,14 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 | Audio | `getUserMedia` + AudioWorklet (16 kHz), Silero VAD (onnxruntime-web), MediaRecorder |
 | Analiza | `src/engine/` – czysty TypeScript (testy w `vitest`) |
 
-- **Mowa / cisza**: detektor aktywności głosu Silero VAD.
-- **Sylaby**: akustyczne wykrywanie jąder sylab (szczyty energii w paśmie samogłosek), skorygowane współczynnikiem
-  z kalibracji.
-- **Frazy i oddechy**: odcinki mowy rozdzielone pauzą ≥ 350 ms; każda pauza to okazja na oddech. Fraza dłuższa niż
+- **Mowa / cisza**: detektor aktywności głosu Silero VAD, doprecyzowany energią i dźwięcznością ramek (krótkie
+  pauzy, które VAD przeoczy, też są wykrywane).
+- **Sylaby**: akustyczne wykrywanie jąder sylab (szczyty energii w paśmie samogłosek 300–2500 Hz), skorygowane
+  współczynnikiem z kalibracji.
+- **Frazy i oddechy**: odcinki mowy rozdzielone pauzą ≥ 300 ms; każda pauza to okazja na oddech. Fraza dłuższa niż
   limit (domyślnie 8 s) jest oznaczana jako zbyt długa.
-- **Tempo**: tempo artykulacji (sylaby/s bez pauz), porównywane z celem (domyślnie 4,5–5,5 syl/s).
+- **Tempo**: tempo artykulacji (sylaby/s bez pauz), porównywane z celem (domyślnie 4,5–5,5 syl/s). Na żywo liczone
+  tak samo jak w raporcie, wygładzane (ok. 2 s) i z histerezą stref, żeby wskaźnik nie skakał.
 
 Kalibracja (minuta czytania znanego tekstu) dopasowuje liczenie sylab do głosu i mikrofonu. Sesje z poprzedniej
 wersji aplikacji są przy starcie przeliczane tą samą metodą.

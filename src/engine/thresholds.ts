@@ -8,18 +8,32 @@ export const T = {
 
   // breath
   /** A silence at least this long counts as a breath and splits phrases. */
-  breathPauseMs: 350,
+  breathPauseMs: 300,
   breathWarnRatio: 0.75,
   /** Pauses longer than this are marked as long. */
   longPauseMs: 2000,
+  /**
+   * Energy-based pause detection (complements VAD, which reacts late and often counts audible inhales as speech):
+   * an unvoiced frame is quiet when it is ≥ `pauseBelowSpeechDb` below the speech level or ≤ `pauseAboveNoiseDb`
+   * above the noise floor – but never closer than `pauseBelowSpeechMinDb` to the speech level.
+   */
+  pauseBelowSpeechDb: 20,
+  pauseAboveNoiseDb: 8,
+  pauseBelowSpeechMinDb: 12,
 
   // syllable nuclei
   nucleusProminenceDb: 2,
   nucleusAboveNoiseDb: 10,
+  /** Peaks weaker than this below the recent loud-vowel level (90th pct.) are echoes/breaths, not syllables. */
+  nucleusBelowPeakDb: 20,
   nucleusVoicing: 0.45,
   nucleusMinGapMs: 100,
   liveWindowMs: 10000,
   liveMinSpeechMs: 3000,
+  /** Time constant of the live tempo smoothing. */
+  liveSmoothingMs: 2000,
+  /** Live tempo label changes only after crossing a zone boundary by this margin (syl/s). */
+  liveZoneHysteresis: 0.25,
   defaultSyllablesPerWord: 2.3,
 
   // phrase tempo

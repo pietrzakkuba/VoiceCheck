@@ -3,7 +3,7 @@ import { T } from '@/engine/thresholds';
 import type { FrameOut } from '@/engine/features';
 import { median, percentile } from '@/engine/features';
 import { NucleusDetector } from '@/engine/syllableNuclei';
-import { VadHysteresis, VAD_FRAME_MS } from '@/engine/segmentation';
+import { VadHysteresis, VAD_FRAME_MS, mergeSegments, quietFrames, quietThresholdDb, refineSegments } from '@/engine/segmentation';
 
 export interface LiveStats {
   elapsedMs: number;
@@ -43,10 +43,14 @@ export class LiveAnalyzer {
   private calib: number[] = [];
   private silence: number[] = [];
   private speechDb: number[] = [];
+  private voicedDb: number[] = [];
+  private speechLevel = NaN;
   noiseFloorDb: number;
   calibrating: boolean;
   private clipWindow: number[] = [];
   private lastVadMs = 0;
+  private smoothRate: number | null = null;
+  private smoothAtMs = 0;
 
   constructor(private o: LiveAnalyzerOptions) {
     this.noiseFloorDb = o.noiseFloorDb ?? -60;
@@ -85,8 +89,13 @@ export class LiveAnalyzer {
     if (this.vad.speaking) {
       this.speechDb.push(f.db);
       if (this.speechDb.length > 1000) this.speechDb.shift();
+      if (f.voicing > T.nucleusVoicing) {
+        this.voicedDb.push(f.db);
+        if (this.voicedDb.length > 1000) this.voicedDb.shift();
+        if (this.voicedDb.length >= 30 && this.voicedDb.length % 10 === 0) this.speechLevel = median(this.voicedDb);
+      }
     }
-    const k = this.det.push(f.db, f.voicing);
+    const k = this.det.push(f.bandDb, f.db, f.voicing);
     if (k >= 0) this.nuclei.push(k * 10);
   }
 
@@ -102,13 +111,21 @@ export class LiveAnalyzer {
     return segs;
   }
 
+  /** VAD segments refined with the intensity track (quiet edges trimmed, split at quiet runs). */
+  refinedSegments(nowMs = this.lastVadMs): SpeechSegment[] {
+    const thr = quietThresholdDb(this.noiseFloorDb, this.speechLevel);
+    return refineSegments(this.speechSegments(nowMs), quietFrames(this.db, this.voicing, thr), this.db.length);
+  }
+
   stats(): LiveStats {
     const now = this.elapsedMs;
-    const segs = this.speechSegments();
+    const segs = this.refinedSegments();
+    // Phrases as in the session report: short gaps (< breath pause) belong to the phrase.
+    const runs = mergeSegments(segs, T.breathPauseMs);
     const winStart = now - T.liveWindowMs;
     let speechInWin = 0;
     let speechTotal = 0;
-    for (const s of segs) {
+    for (const s of runs) {
       speechTotal += s.endMs - s.startMs;
       speechInWin += Math.max(0, s.endMs - Math.max(s.startMs, winStart));
     }
@@ -117,9 +134,9 @@ export class LiveAnalyzer {
     let segment = 0;
     for (const t of this.nuclei) {
       if (t < speechStart || this.calibrating) continue;
-      while (segment < segs.length && t > segs[segment].endMs + 30) segment++;
-      if (segment === segs.length) break;
-      if (t >= segs[segment].startMs - 30) syllables++;
+      while (segment < runs.length && t > runs[segment].endMs + 30) segment++;
+      if (segment === runs.length) break;
+      if (t >= runs[segment].startMs - 30) syllables++;
     }
     let rate: number | null = null;
     if (speechInWin >= T.liveMinSpeechMs) {
@@ -127,19 +144,17 @@ export class LiveAnalyzer {
       let n = 0;
       for (let i = this.nuclei.length - 1; i >= 0 && this.nuclei[i] >= winStart; i--) {
         const t = this.nuclei[i];
-        if (segs.some((s) => t >= s.startMs - 30 && t <= s.endMs + 30)) n++;
+        if (runs.some((s) => t >= s.startMs - 30 && t <= s.endMs + 30)) n++;
       }
-      rate = (n * this.o.correction) / (speechInWin / 1000);
+      rate = this.smooth((n * this.o.correction) / (speechInWin / 1000), now);
+    } else {
+      this.smoothRate = null;
     }
-    // Breath run: merge segments separated by <350 ms.
+    // Breath run: the current phrase, unless a breath-length pause is in progress.
     let runMs = 0;
-    if (this.vad.speaking && segs.length) {
-      let start = segs[segs.length - 1].startMs;
-      for (let i = segs.length - 2; i >= 0; i--) {
-        if (start - segs[i].endMs < T.breathPauseMs) start = segs[i].startMs;
-        else break;
-      }
-      runMs = this.lastVadMs - start;
+    const last = runs[runs.length - 1];
+    if (this.vad.speaking && last && this.lastVadMs - last.endMs < T.breathPauseMs) {
+      runMs = Math.max(0, this.lastVadMs - last.startMs);
     }
     const ratio = runMs / this.o.maxContinuousMs;
     const clipRatio = this.clipWindow.length ? this.clipWindow.reduce((a, b) => a + b, 0) / this.clipWindow.length : 0;
@@ -159,5 +174,17 @@ export class LiveAnalyzer {
       speechMs: speechTotal,
       syllables: syllables * this.o.correction,
     };
+  }
+
+  /** Time-based exponential smoothing (independent of how often stats() is called). */
+  private smooth(rate: number, nowMs: number): number {
+    if (this.smoothRate === null || nowMs < this.smoothAtMs) {
+      this.smoothRate = rate;
+    } else {
+      const a = 1 - Math.exp(-(nowMs - this.smoothAtMs) / T.liveSmoothingMs);
+      this.smoothRate += a * (rate - this.smoothRate);
+    }
+    this.smoothAtMs = nowMs;
+    return this.smoothRate;
   }
 }

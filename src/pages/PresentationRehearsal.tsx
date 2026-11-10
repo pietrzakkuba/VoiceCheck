@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, Label, Switch } from '@/components/ui/primitives';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
-import { LivePacePanel, liveIndicators } from '@/components/audio/LivePacePanel';
+import { LivePacePanel, useLiveIndicators } from '@/components/audio/LivePacePanel';
 import { RehearsalText } from '@/components/RehearsalText';
 import { PresentationContent } from '@/components/PresentationContent';
 import { KeepScreenAwakeToggle } from '@/components/KeepScreenAwakeToggle';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
+import { useMobileLayout } from '@/hooks/useMobileLayout';
 import { getPresentation } from '@/store/db';
 import { useSettings } from '@/store/settings';
 import { formatDuration, textStats } from '@/lib/presentation';
@@ -24,13 +25,14 @@ export default function PresentationRehearsal() {
   const target = useSettings((s) => s.targetArticulationRate);
   const maxBreathSeconds = useSettings((s) => s.maxContinuousSpeechSeconds);
   const autoScroll = useSettings((s) => s.readingAutoScroll);
+  const mobile = useMobileLayout();
   const setSettings = useSettings((s) => s.set);
   const setAutoScroll = useCallback((readingAutoScroll: boolean) => setSettings({ readingAutoScroll }), [setSettings]);
   const ts = useTrainingSession();
   const nav = useNavigate();
   const stats = useMemo(() => textStats(text, target), [text, target]);
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
-  const { frameColor } = liveIndicators(ts.phase, ts.stats, target);
+  const { frameColor } = useLiveIndicators(ts.phase, ts.stats, target);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle');
   const [searchParams, setSearchParams] = useSearchParams();
   const autoStartAttempted = useRef(false);
@@ -99,22 +101,24 @@ export default function PresentationRehearsal() {
           Wygłoś prezentację na głos. Na bieżąco widzisz tempo, a pasek oddechu przypomni Ci o wdechu, gdy mówisz zbyt długo bez przerwy.
         </p>
         <p className="text-muted-foreground text-sm mt-1">
-          Szacowany czas czytania: ok. {formatDuration(stats.estimatedSeconds)} (w Twoim tempie docelowym, bez pauz)
+          Szacowany czas czytania: ok. {formatDuration(stats.estimatedSeconds)} (w Twoim tempie docelowym, z uwzględnieniem pauz)
         </p>
       </div>
 
-      <div className="rehearsal-settings flex flex-wrap items-center gap-x-8 gap-y-3">
-        <div className="flex min-w-60 flex-1 items-center justify-between gap-4">
-          <div>
-            <Label htmlFor="reading-auto-scroll">Automatyczne przewijanie tekstu</Label>
-            <p id="reading-auto-scroll-description" className="text-xs text-muted-foreground">
-              Szacuje postęp na podstawie wykrytych sylab. Zatrzymuje się podczas ciszy.
-            </p>
+      {!mobile && (
+        <div className="rehearsal-settings flex flex-wrap items-center gap-x-8 gap-y-3">
+          <div className="flex min-w-60 flex-1 items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="reading-auto-scroll">Automatyczne przewijanie tekstu</Label>
+              <p id="reading-auto-scroll-description" className="text-xs text-muted-foreground">
+                Szacuje postęp na podstawie wykrytych sylab. Zatrzymuje się podczas ciszy.
+              </p>
+            </div>
+            <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
           </div>
-          <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
+          <KeepScreenAwakeToggle active={active} className="min-w-60 flex-1" />
         </div>
-        <KeepScreenAwakeToggle active={active} className="min-w-60 flex-1" />
-      </div>
+      )}
 
       {!active && (
         <Card>
@@ -155,7 +159,7 @@ export default function PresentationRehearsal() {
           <RehearsalText
             text={text}
             document={presentation.document}
-            autoScroll={autoScroll}
+            autoScroll={autoScroll && !mobile}
             onAutoScrollChange={setAutoScroll}
             syllablesRead={ts.phase === 'recording' && ts.stats && !ts.stats.calibrating ? ts.stats.syllables : null}
           >

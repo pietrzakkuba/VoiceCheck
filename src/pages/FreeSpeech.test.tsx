@@ -107,6 +107,30 @@ describe('free speech', () => {
     expect(mocks.start).toHaveBeenCalledWith({ mode: 'free_speech' });
   });
 
+  it('removes the wake lock option and does not request a lock on mobile', async () => {
+    const request = vi.fn();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+    Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true });
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    mocks.phase = 'recording';
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(<FreeSpeech />));
+      expect(host.querySelector('#keep-screen-awake')).toBeNull();
+      expect(host.textContent).not.toContain('Nie wygaszaj ekranu');
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+      delete (navigator as { wakeLock?: unknown }).wakeLock;
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('queries only free speech sessions, newest first', async () => {
     const collection = db.sessions.toCollection();
     const where = vi.spyOn(db.sessions, 'where').mockReturnValue(collection);

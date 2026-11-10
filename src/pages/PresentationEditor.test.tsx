@@ -165,7 +165,7 @@ describe('presentation editor persistence', () => {
     const text = 'Dzień dobry państwu. '.repeat(20);
     await act(async () => { editor.commands.setContent(documentFromText(text).content); });
     expect(host.textContent).toContain(estimate(text));
-    expect(host.textContent).toContain('bez pauz');
+    expect(host.textContent).toContain('z uwzględnieniem pauz');
   });
 
   it('validates oversized legacy content on save instead of persisting an invalid presentation', async () => {

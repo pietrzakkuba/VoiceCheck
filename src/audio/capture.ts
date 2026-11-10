@@ -1,6 +1,7 @@
 import type { SpeechSegment } from '@/types';
 import workletUrl from './capture.worklet.ts?worker&url';
 import { FeatureExtractor, SR } from '@/engine/features';
+import { refineSpeech } from '@/engine/segmentation';
 import { SileroVad } from './vad';
 import { AudioRecorder } from './recorder';
 import { LiveAnalyzer, type LiveStats } from './liveAnalyzer';
@@ -171,7 +172,7 @@ export class MicCapture {
     await this.ctx.close().catch(() => undefined);
     await this.vadChain;
     const dur = this.durationMs;
-    const speech = this.live.vad.close(dur);
+    const speech = refineSpeech(this.live.vad.close(dur), this.live.db, this.live.voicing, this.live.noiseFloorDb);
     const stats = this.live.stats();
     return {
       pcm: this.pcm(),
@@ -179,7 +180,7 @@ export class MicCapture {
       mimeType: blob.type,
       db: Float32Array.from(this.live.db),
       voicing: Float32Array.from(this.live.voicing),
-      speech: [...speech],
+      speech,
       nuclei: [...this.live.nuclei],
       noiseFloorDb: this.live.noiseFloorDb,
       durationMs: dur,

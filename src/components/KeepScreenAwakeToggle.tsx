@@ -1,15 +1,19 @@
 import { useCallback } from 'react';
 import { Label, Switch } from '@/components/ui/primitives';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { useMobileLayout } from '@/hooks/useMobileLayout';
 import { useSettings } from '@/store/settings';
 import { cn } from '@/lib/utils';
 
-/** Remembered "keep the screen on" option; holds a screen wake lock while `active`. */
+/** Remembered desktop option; holds a screen wake lock while `active`. */
 export function KeepScreenAwakeToggle({ active, className }: { active: boolean; className?: string }) {
   const keepAwake = useSettings((s) => s.keepScreenAwake);
   const setSettings = useSettings((s) => s.set);
   const setKeepAwake = useCallback((keepScreenAwake: boolean) => setSettings({ keepScreenAwake }), [setSettings]);
-  const status = useWakeLock(active && keepAwake);
+  const mobile = useMobileLayout();
+  const status = useWakeLock(active && keepAwake && !mobile);
+
+  if (mobile) return null;
 
   return (
     <div className={cn('flex items-center justify-between gap-4', className)}>

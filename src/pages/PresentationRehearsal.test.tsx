@@ -163,6 +163,35 @@ describe('presentation rehearsal', () => {
     return host;
   }
 
+  function installMobileLayout(initial: boolean) {
+    let mobile = initial;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      get matches() { return mobile; },
+      addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+    })));
+    return (matches: boolean) => {
+      mobile = matches;
+      listeners.forEach((listener) => listener());
+    };
+  }
+
+  it.each(['idle', 'starting', 'recording', 'processing'] as const)('removes mobile options and keeps scrolling manual during %s without changing desktop preferences', async (phase) => {
+    installMobileLayout(true);
+    mocks.phase = phase;
+    mocks.stats = liveStats(5);
+    const host = await renderPage();
+    expect(host.querySelector('.rehearsal-settings')).toBeNull();
+    expect(host.querySelector('#keep-screen-awake')).toBeNull();
+    expect(host.textContent).not.toContain('Automatyczne przewijanie');
+    expect(host.textContent).not.toContain('Nie wygaszaj ekranu');
+    if (phase !== 'idle') expect(mocks.readingProps?.autoScroll).toBe(false);
+    expect(mocks.setSettings).not.toHaveBeenCalled();
+    expect(mocks.autoScroll).toBe(true);
+    expect(mocks.keepAwake).toBe(true);
+  });
+
   it('records the session as a rehearsal of this presentation after a manual start', async () => {
     const host = await renderPage();
     expect(mocks.start).not.toHaveBeenCalled();
@@ -361,6 +390,29 @@ describe('presentation rehearsal', () => {
 
     afterEach(() => {
       delete (navigator as { wakeLock?: unknown }).wakeLock;
+    });
+
+    it('never locks on mobile, restores desktop options and releases the lock on returning to mobile', async () => {
+      const setMobile = installMobileLayout(true);
+      const { request, sentinels } = installWakeLock();
+      mocks.phase = 'recording';
+      mocks.stats = liveStats(5);
+      const host = await renderPage();
+      expect(request).not.toHaveBeenCalled();
+      expect(mocks.readingProps?.autoScroll).toBe(false);
+
+      await act(async () => setMobile(false));
+      expect(host.querySelector('#keep-screen-awake')).not.toBeNull();
+      expect(host.querySelector('#reading-auto-scroll')).not.toBeNull();
+      expect(mocks.readingProps?.autoScroll).toBe(true);
+      expect(request).toHaveBeenCalledWith('screen');
+      expect(sentinels.some((sentinel) => !sentinel.released)).toBe(true);
+
+      await act(async () => setMobile(true));
+      expect(host.querySelector('.rehearsal-settings')).toBeNull();
+      expect(mocks.readingProps?.autoScroll).toBe(false);
+      expect(sentinels.every((sentinel) => sentinel.released)).toBe(true);
+      expect(mocks.setSettings).not.toHaveBeenCalled();
     });
 
     it('holds a screen wake lock only while presenting and releases it afterwards', async () => {

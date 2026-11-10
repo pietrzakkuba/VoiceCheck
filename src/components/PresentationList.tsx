@@ -41,7 +41,7 @@ export function PresentationList() {
                   <p className="text-sm text-muted-foreground line-clamp-2 wrap-anywhere">{p.text}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span>{st.words} słów</span>
-                    <span title="W Twoim tempie docelowym, bez pauz">
+                    <span title="W Twoim tempie docelowym, z uwzględnieniem pauz">
                       Szacowany czas czytania: ok. {formatDuration(st.estimatedSeconds)}
                     </span>
                     <span className="ml-auto">{new Date(p.updatedAt).toLocaleDateString('pl-PL')}</span>

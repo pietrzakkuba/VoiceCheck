@@ -107,7 +107,7 @@ export default function PresentationEditor() {
         <CardHeader>
           <CardTitle>Treść</CardTitle>
           <CardDescription>
-            {stats.words} słów · {stats.syllables} sylab · Szacowany czas czytania: ok. {formatDuration(stats.estimatedSeconds)} (w Twoim tempie docelowym, bez pauz)
+            {stats.words} słów · {stats.syllables} sylab · Szacowany czas czytania: ok. {formatDuration(stats.estimatedSeconds)} (w Twoim tempie docelowym, z uwzględnieniem pauz)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

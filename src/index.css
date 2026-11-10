@@ -224,14 +224,10 @@
     flex-shrink: 0;
   }
   .presentation-rehearsal-active .rehearsal-intro,
-  .presentation-rehearsal-active .rehearsal-settings p,
   .presentation-rehearsal-active .rehearsal-controls p,
   .presentation-rehearsal-active .rehearsal-controls > span,
   .presentation-rehearsal-active .rehearsal-errors:empty {
     display: none;
-  }
-  .presentation-rehearsal-active .rehearsal-settings {
-    gap: 0.5rem;
   }
   .presentation-rehearsal-active .rehearsal-card {
     min-height: 0;

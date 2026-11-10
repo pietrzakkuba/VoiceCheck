@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { vadSegments, mergeSegments } from './segmentation';
+import { vadSegments, mergeSegments, refineSegments, refineSpeech } from './segmentation';
 import { extractFeatures, SR } from './features';
 import { detectNuclei } from './syllableNuclei';
 import { analyzeSession, classifyTempo, type SessionAnalysisInput } from './session';
@@ -27,9 +27,54 @@ describe('acoustics', () => {
   it('counts syllable nuclei on a 5 Hz modulated tone', () => {
     const x = tone(2, 150, (t) => 0.02 + 0.3 * Math.abs(Math.sin(Math.PI * 5 * t)) ** 2);
     const f = extractFeatures(x);
-    const n = detectNuclei(f.db, f.voicing, -60);
+    const n = detectNuclei(f.bandDb, f.db, f.voicing, -60);
     expect(n.length).toBeGreaterThanOrEqual(9);
     expect(n.length).toBeLessThanOrEqual(11);
+  });
+
+  it('ignores weak echo peaks far below the speech level', () => {
+    // Loud syllables at 4/s, each followed by a weak bump (−30 dB) that the old detector counted.
+    const x = tone(4, 150, (t) => {
+      const ph = (t * 4) % 1;
+      return 0.002 + (ph < 0.5 ? 0.3 * Math.sin(Math.PI * ph * 2) ** 2 : 0.01 * Math.sin(Math.PI * (ph - 0.5) * 2) ** 2);
+    });
+    const f = extractFeatures(x);
+    const n = detectNuclei(f.bandDb, f.db, f.voicing, -70);
+    expect(n.length).toBeGreaterThanOrEqual(14);
+    expect(n.length).toBeLessThanOrEqual(17);
+  });
+});
+
+describe('energy-based pauses', () => {
+  const frames = (spec: [number, number, boolean][]) => {
+    const db: number[] = [];
+    const voicing: number[] = [];
+    for (const [ms, level, voiced] of spec) {
+      for (let i = 0; i < ms / 10; i++) { db.push(level); voicing.push(voiced ? 0.8 : 0.1); }
+    }
+    return { db, voicing };
+  };
+
+  it('splits a VAD segment at a short quiet breath and trims the VAD hangover', () => {
+    // speech 2 s, inhale 300 ms (unvoiced, −30 dB below speech), speech 2 s, then 400 ms of silence still marked as speech.
+    const { db, voicing } = frames([[2000, -25, true], [300, -55, false], [2000, -25, true], [400, -62, false]]);
+    const out = refineSpeech([{ startMs: 0, endMs: 4700 }], db, voicing, -65);
+    expect(out).toEqual([{ startMs: 0, endMs: 2000 }, { startMs: 2300, endMs: 4300 }]);
+  });
+
+  it('keeps short gaps and unvoiced consonants inside a phrase', () => {
+    const { db, voicing } = frames([[1000, -25, true], [150, -50, false], [1000, -25, true], [200, -35, false], [500, -25, true]]);
+    expect(refineSpeech([{ startMs: 0, endMs: 2850 }], db, voicing, -65)).toEqual([{ startMs: 0, endMs: 2850 }]);
+  });
+
+  it('drops segments that are quiet throughout (inhale classified as speech)', () => {
+    const { db, voicing } = frames([[1000, -25, true], [500, -62, false], [400, -50, false], [500, -62, false], [1000, -25, true]]);
+    const out = refineSpeech([{ startMs: 0, endMs: 1000 }, { startMs: 1500, endMs: 1900 }, { startMs: 2400, endMs: 3400 }], db, voicing, -65);
+    expect(out).toEqual([{ startMs: 0, endMs: 1000 }, { startMs: 2400, endMs: 3400 }]);
+  });
+
+  it('treats frames that are not analysed yet as speech', () => {
+    expect(refineSegments([{ startMs: 0, endMs: 500 }], () => true, 20)).toEqual([{ startMs: 200, endMs: 500 }]);
   });
 });
 

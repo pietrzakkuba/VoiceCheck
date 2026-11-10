@@ -12,14 +12,44 @@ function zones([lo, hi]: [number, number]): { from: number; to: number; color: s
   ];
 }
 
-/** Live tempo zone relative to the user's target range (same bands as the session report). */
-export function rateZone(rate: number | null, [lo, hi]: [number, number] = DEFAULT_TARGET): { label: string; cls: string } {
-  if (rate === null) return { label: 'Mów dalej…', cls: 'text-muted-foreground' };
-  if (rate < lo - 1) return { label: 'Bardzo wolno', cls: 'text-info' };
-  if (rate < lo - 0.5) return { label: 'Spokojnie', cls: 'text-ok' };
-  if (rate <= hi) return { label: 'Dobre tempo', cls: 'text-ok' };
-  if (rate <= hi + 1) return { label: 'Szybko', cls: 'text-warn' };
-  return { label: 'Za szybko!', cls: 'text-bad' };
+export type RateZoneKey = 'none' | 'very_slow' | 'calm' | 'ok' | 'fast' | 'too_fast';
+
+const ZONE_ORDER: RateZoneKey[] = ['very_slow', 'calm', 'ok', 'fast', 'too_fast'];
+const ZONE_INFO: Record<RateZoneKey, { label: string; cls: string }> = {
+  none: { label: 'Mów dalej…', cls: 'text-muted-foreground' },
+  very_slow: { label: 'Bardzo wolno', cls: 'text-info' },
+  calm: { label: 'Spokojnie', cls: 'text-ok' },
+  ok: { label: 'Dobre tempo', cls: 'text-ok' },
+  fast: { label: 'Szybko', cls: 'text-warn' },
+  too_fast: { label: 'Za szybko!', cls: 'text-bad' },
+};
+
+function zoneKey(rate: number, [lo, hi]: [number, number]): RateZoneKey {
+  if (rate < lo - 1) return 'very_slow';
+  if (rate < lo - 0.5) return 'calm';
+  if (rate <= hi) return 'ok';
+  if (rate <= hi + 1) return 'fast';
+  return 'too_fast';
+}
+
+/**
+ * Live tempo zone relative to the user's target range (same bands as the session report).
+ * With `prev`, the zone changes only once the rate crosses the boundary by `hysteresis` (no flicker at the edges).
+ */
+export function rateZone(
+  rate: number | null,
+  target: [number, number] = DEFAULT_TARGET,
+  prev?: RateZoneKey,
+  hysteresis = 0,
+): { key: RateZoneKey; label: string; cls: string } {
+  if (rate === null) return { key: 'none', ...ZONE_INFO.none };
+  let key = zoneKey(rate, target);
+  if (prev && prev !== 'none' && prev !== key && hysteresis > 0) {
+    const up = ZONE_ORDER.indexOf(key) > ZONE_ORDER.indexOf(prev);
+    const nudged = zoneKey(up ? rate - hysteresis : rate + hysteresis, target);
+    if (nudged === prev) key = prev;
+  }
+  return { key, ...ZONE_INFO[key] };
 }
 
 const R = 80;

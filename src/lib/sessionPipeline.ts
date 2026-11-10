@@ -5,7 +5,7 @@ import { decodeToPcm16k, dbEnvelope, estimateOffsetMs } from '@/audio/decode';
 import { vadProbabilities } from '@/audio/vad';
 import { extractFeatures, median, peakWaveform, SR } from '@/engine/features';
 import { detectNuclei } from '@/engine/syllableNuclei';
-import { vadSegments } from '@/engine/segmentation';
+import { refineSpeech, vadSegments } from '@/engine/segmentation';
 import { analyzeSession } from '@/engine/session';
 import { db, saveSession } from '@/store/db';
 import { getSettings } from '@/store/settings';
@@ -152,21 +152,21 @@ export async function recomputeSession(id: string): Promise<TrainingSession | nu
 /** Decodes a stored recording and re-detects speech and syllable nuclei offline. */
 async function analyseStoredAudio(blob: Blob, fallbackNoiseFloor: number) {
   const pcm = await decodeToPcm16k(blob);
-  const { db: dbTrack, voicing } = extractFeatures(pcm);
+  const { db: dbTrack, bandDb, voicing } = extractFeatures(pcm);
   const vad = await sharedVadInstance();
   vad.reset();
   const probs = await vadProbabilities(pcm, vad);
-  const speech = vadSegments(probs);
+  const vadSpeech = vadSegments(probs);
   const silent: number[] = [];
   for (let i = 0; i < dbTrack.length; i++) {
     const t = i * 10;
-    if (!speech.some((s) => t >= s.startMs - 100 && t <= s.endMs + 100)) silent.push(dbTrack[i]);
+    if (!vadSpeech.some((s) => t >= s.startMs - 100 && t <= s.endMs + 100)) silent.push(dbTrack[i]);
   }
   const noiseFloorDb = silent.length > 50 ? median(silent) : fallbackNoiseFloor;
   return {
     durationMs: (pcm.length / SR) * 1000,
-    speech,
-    nucleiMs: detectNuclei(dbTrack, voicing, noiseFloorDb).map((k) => k * 10),
+    speech: refineSpeech(vadSpeech, dbTrack, voicing, noiseFloorDb),
+    nucleiMs: detectNuclei(bandDb, dbTrack, voicing, noiseFloorDb).map((k) => k * 10),
     db: dbTrack,
     noiseFloorDb,
     waveform: peakWaveform(pcm).map((v) => round(v, 1000)),

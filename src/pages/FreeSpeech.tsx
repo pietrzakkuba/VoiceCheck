@@ -7,7 +7,7 @@ import { DeleteSessionsButton } from '@/components/DeleteSessionsButton';
 import { SessionList } from '@/components/SessionList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
-import { LivePacePanel, liveIndicators } from '@/components/audio/LivePacePanel';
+import { LivePacePanel, useLiveIndicators } from '@/components/audio/LivePacePanel';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
 import { useSettings } from '@/store/settings';
 import { db } from '@/store/db';
@@ -22,7 +22,7 @@ export default function FreeSpeech() {
   const sessions = allSessions.filter((session) => session.schema === 2);
   const nav = useNavigate();
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
-  const { frameColor } = liveIndicators(ts.phase, ts.stats, target);
+  const { frameColor } = useLiveIndicators(ts.phase, ts.stats, target);
 
   const start = () => ts.start({ mode: 'free_speech' });
   const stop = async () => {

@@ -188,7 +188,7 @@ export default function SessionReport() {
             <div className="space-y-1">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Szacowany czas czytania</div>
               <div className="text-2xl font-semibold tabular-nums text-foreground">ok. {formatDuration(readingStats.estimatedSeconds)}</div>
-              <div className="text-xs text-muted-foreground">W tempie docelowym zapisanym w sesji, bez pauz</div>
+              <div className="text-xs text-muted-foreground">W tempie docelowym zapisanym w sesji, z uwzględnieniem pauz</div>
             </div>
           )}
         </CardContent>

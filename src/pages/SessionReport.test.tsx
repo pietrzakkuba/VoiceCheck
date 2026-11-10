@@ -130,7 +130,7 @@ describe('session report reading time', () => {
     expect(timeCard).toContain('0:52');
     expect(timeCard).toContain('Szacowany czas czytania');
     expect(timeCard).toContain(`ok. ${formatDuration(estimated)}`);
-    expect(timeCard).toContain('W tempie docelowym zapisanym w sesji, bez pauz');
+    expect(timeCard).toContain('W tempie docelowym zapisanym w sesji, z uwzględnieniem pauz');
     expect(timeCard).not.toContain('Pozostało');
     expect(timeCard).not.toContain('Przekroczono');
   });

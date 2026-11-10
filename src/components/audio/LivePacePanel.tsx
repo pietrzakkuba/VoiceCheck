@@ -1,21 +1,31 @@
+import { useRef } from 'react';
 import { Gauge } from 'lucide-react';
 import type { LiveStats } from '@/audio/liveAnalyzer';
 import type { SessionPhase } from '@/hooks/useTrainingSession';
-import { rateZone } from '@/components/audio/SpeedometerGauge';
+import { rateZone, type RateZoneKey } from '@/components/audio/SpeedometerGauge';
 import { BreathBar } from '@/components/audio/BreathBar';
 import { SessionTime } from '@/components/SessionTime';
+import { T } from '@/engine/thresholds';
 import { cn } from '@/lib/utils';
 
-/** Live pace + breath state derived from the current recording phase and stats. */
-export function liveIndicators(phase: SessionPhase, stats: LiveStats | null, target: [number, number]) {
+/** Live pace + breath state derived from the current recording phase and stats. Pass `prevZone` for hysteresis. */
+export function liveIndicators(phase: SessionPhase, stats: LiveStats | null, target: [number, number], prevZone?: RateZoneKey) {
   const live = phase === 'recording' && !stats?.calibrating;
   const rate = live ? stats?.syllableRate ?? null : null;
-  const pace = rateZone(rate, target);
+  const pace = rateZone(rate, target, prevZone, T.liveZoneHysteresis);
   const breathState = live ? stats?.breathState ?? 'ok' : 'ok';
   const frameColor = breathState === 'critical' || pace.cls === 'text-bad' ? 'text-bad'
     : breathState === 'warn' ? 'text-warn'
     : pace.cls;
   return { rate, pace, frameColor };
+}
+
+/** `liveIndicators` with a sticky tempo zone, so the label does not flicker at zone boundaries. */
+export function useLiveIndicators(phase: SessionPhase, stats: LiveStats | null, target: [number, number]) {
+  const prev = useRef<RateZoneKey>('none');
+  const out = liveIndicators(phase, stats, target, prev.current);
+  prev.current = out.pace.key;
+  return out;
 }
 
 /** Pace panel, breath bar and session timer shown during a recording. */
@@ -25,7 +35,7 @@ export function LivePacePanel({ phase, stats, target, maxBreathSeconds }: {
   target: [number, number];
   maxBreathSeconds: number;
 }) {
-  const { rate, pace } = liveIndicators(phase, stats, target);
+  const { rate, pace } = useLiveIndicators(phase, stats, target);
   const breathInactiveLabel = phase === 'starting' ? 'Uruchamianie…'
     : phase === 'processing' ? 'Analizowanie…'
     : stats?.calibrating ? 'Kalibracja…'
