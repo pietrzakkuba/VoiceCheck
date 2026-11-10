@@ -73,7 +73,7 @@ export default function SessionReport() {
   if (!session) {
     return (
       <Alert variant="warn">
-        Nie znaleziono sesji. <Link className="underline" to="/">Wróć do pulpitu</Link>
+        Nie znaleziono sesji. <Link className="underline" to="/history">Wróć do historii</Link>
       </Alert>
     );
   }
@@ -121,13 +121,13 @@ export default function SessionReport() {
 
   const remove = async () => {
     await deleteSession(session.id);
-    nav('/');
+    nav('/history');
   };
 
   return (
     <div className="space-y-5">
       <Button variant="outline" size="sm" asChild>
-        <Link to="/"><ArrowLeft className="size-4" aria-hidden /> Strona główna</Link>
+        <Link to="/history"><ArrowLeft className="size-4" aria-hidden /> Historia</Link>
       </Button>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -144,7 +144,7 @@ export default function SessionReport() {
           )}
           {presentation && (
             <Button size="sm" asChild>
-              <Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Prezentuj ponownie</Link>
+              <Link to={`/presentations/${presentation.id}/rehearse?start=1`}><Mic className="size-4" aria-hidden /> Prezentuj ponownie</Link>
             </Button>
           )}
           {session.mode === 'free_speech' && (

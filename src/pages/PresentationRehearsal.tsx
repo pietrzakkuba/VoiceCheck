@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Copy, Loader2, Pencil, Presentation as PresentationIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,22 @@ export default function PresentationRehearsal() {
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
   const { frameColor } = liveIndicators(ts.phase, ts.stats, target);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoStartAttempted = useRef(false);
+  const startSession = ts.start;
+
+  useEffect(() => {
+    if (searchParams.get('start') !== '1' || autoStartAttempted.current || !presentation || stats.words < 1 || ts.phase !== 'idle') return;
+    autoStartAttempted.current = true;
+    const remainingParams = new URLSearchParams(searchParams);
+    remainingParams.delete('start');
+    setSearchParams(remainingParams, { replace: true });
+    void startSession({
+      mode: 'presentation',
+      targetText: text.trim(),
+      presentationId: presentation.id,
+    });
+  }, [searchParams, setSearchParams, presentation, stats.words, ts.phase, startSession, text]);
 
   const copyText = async () => {
     setCopyStatus('copying');
@@ -54,7 +70,7 @@ export default function PresentationRehearsal() {
     return (
       <div className="space-y-4">
         <Alert variant="warn">Nie znaleziono tej prezentacji – mogła zostać usunięta.</Alert>
-        <Button variant="outline" asChild><Link to="/"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
+        <Button variant="outline" asChild><Link to="/presentations"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
       </div>
     );
   }
@@ -70,10 +86,10 @@ export default function PresentationRehearsal() {
   };
 
   return (
-    <div className="space-y-5">
-      <div>
+    <div className={cn('space-y-5', active && 'presentation-rehearsal-active')}>
+      <div className="rehearsal-intro">
         {!active && (
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+          <Link to="/presentations" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             <ArrowLeft className="size-4" aria-hidden /> Prezentacje
           </Link>
         )}
@@ -86,7 +102,7 @@ export default function PresentationRehearsal() {
         </p>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="rehearsal-settings flex items-center justify-between gap-4">
         <div>
           <Label htmlFor="reading-auto-scroll">Automatyczne przewijanie tekstu</Label>
           <p id="reading-auto-scroll-description" className="text-xs text-muted-foreground">
@@ -131,7 +147,7 @@ export default function PresentationRehearsal() {
       )}
 
       {active && (
-        <Card className={cn('gap-0 border-4 border-current py-0 transition-colors duration-300', frameColor)}>
+        <Card className={cn('rehearsal-card gap-0 border-4 border-current py-0 transition-colors duration-300', frameColor)}>
           <RehearsalText
             text={text}
             document={presentation.document}
@@ -149,12 +165,20 @@ export default function PresentationRehearsal() {
         </Card>
       )}
 
-      <SessionErrors error={ts.error} deviceWarning={ts.deviceWarning} />
-      <div className="flex items-center gap-3">
+      {(ts.error || ts.deviceWarning) && (
+        <div className="rehearsal-errors">
+          <SessionErrors error={ts.error} deviceWarning={ts.deviceWarning} />
+        </div>
+      )}
+      <div className="rehearsal-controls flex items-center gap-3">
         <RecordControls phase={ts.phase} onStart={start} onStop={stop} disabled={stats.words < 1} />
         {ts.phase === 'recording' && <span className="text-sm text-muted-foreground">Mów naturalnie. Kliknij „Zakończ”, gdy skończysz.</span>}
       </div>
-      {active && <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} showBreath={false} />}
+      {active && (
+        <div className="rehearsal-diagnostics">
+          <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} showBreath={false} compactMobile />
+        </div>
+      )}
     </div>
   );
 }

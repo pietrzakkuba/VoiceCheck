@@ -11,21 +11,22 @@ import { formatMs } from '@/lib/utils';
 import type { SessionPhase } from '@/hooks/useTrainingSession';
 import { T } from '@/engine/thresholds';
 
-export function LiveHud({ stats, getDb, getSpeaking, showBreath = true }: {
+export function LiveHud({ stats, getDb, getSpeaking, showBreath = true, compactMobile = false }: {
   stats: LiveStats | null;
   getDb: () => ArrayLike<number> | null;
   getSpeaking: () => boolean;
   showBreath?: boolean;
+  compactMobile?: boolean;
 }) {
   const s = useSettings();
   return (
     <div className="space-y-3">
       {stats?.calibrating && (
-        <Alert variant="info" className="justify-center text-base font-medium">
+        <Alert variant="info" className={`justify-center text-base font-medium${compactMobile ? ' live-hud-compact-mobile-details' : ''}`}>
           <MicOff className="size-5" aria-hidden /> Zachowaj ciszę (2 s) – mierzę szum tła…
         </Alert>
       )}
-        <div className="space-y-3">
+        <div className={compactMobile ? 'live-hud-compact-mobile-details space-y-3' : 'space-y-3'}>
           {showBreath && <BreathBar runMs={stats?.breathRunMs ?? 0} maxMs={s.maxContinuousSpeechSeconds * 1000} state={stats?.breathState ?? 'ok'} />}
           <WaveformCanvas getDb={getDb} getSpeaking={getSpeaking} />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
@@ -46,7 +47,7 @@ export function LiveHud({ stats, getDb, getSpeaking, showBreath = true }: {
 }
 
 /** Start/stop control with processing state. */
-export function RecordControls({ phase, onStart, onStop, startLabel = 'Rozpocznij nagranie', stopLabel = 'Zakończ', disabled }: {
+export function RecordControls({ phase, onStart, onStop, startLabel = 'Prezentuj', stopLabel = 'Zakończ', disabled }: {
   phase: SessionPhase;
   onStart: () => void;
   onStop: () => void;
@@ -98,7 +99,7 @@ export function RecordControls({ phase, onStart, onStop, startLabel = 'Rozpoczni
         {phase === 'starting' ? 'Uruchamiam mikrofon…' : phase === 'processing' ? 'Analizuję…' : phase === 'recording' ? stopLabel : startLabel}
       </Button>
       {!unavailable && (
-        <p id={hintId} className="text-sm leading-7 text-muted-foreground">
+        <p id={hintId} className="hidden text-sm leading-7 text-muted-foreground md:block">
           <kbd className="rounded border bg-muted px-2 py-1 font-sans text-xs">Spacja</kbd>
           {' — '}{phase === 'recording' ? 'zakończ nagranie' : 'rozpocznij nagranie'}
         </p>

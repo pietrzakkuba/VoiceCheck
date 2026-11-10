@@ -84,9 +84,9 @@ export function RehearsalText({ text, document, syllablesRead, autoScroll, onAut
   }, [autoScroll, syllablesRead, chunks]);
 
   return (
-    <div className="overflow-hidden rounded-[inherit] p-1 text-card-foreground">
-      <div ref={viewportRef} className="max-h-[65vh] overflow-y-auto rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
-        <div ref={headerRef} className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
+    <div className="rehearsal-text overflow-hidden rounded-[inherit] p-1 text-card-foreground">
+      <div ref={viewportRef} className="rehearsal-viewport max-h-[65vh] overflow-y-auto rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 [overflow-anchor:none] [scrollbar-gutter:stable]" tabIndex={0} role="region" aria-label="Tekst do czytania z podglądem tempa i oddechu">
+        <div ref={headerRef} className="rehearsal-indicators sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-5 py-3">
           {children}
         </div>
         <CardContent className="py-5">

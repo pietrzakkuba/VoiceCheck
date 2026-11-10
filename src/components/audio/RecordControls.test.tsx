@@ -108,6 +108,11 @@ describe('recording space shortcut', () => {
     expect(mocks.start).toHaveBeenCalledOnce();
   });
 
+  it.each(['idle', 'recording'] as const)('shows the shortcut hint only on desktop in %s', (phase) => {
+    const html = render(phase);
+    expect(html).toMatch(/<p[^>]*class="hidden text-sm leading-7 text-muted-foreground md:block"/);
+  });
+
   it('ignores held space and duplicate events before the phase changes', () => {
     render();
     press();

@@ -15,7 +15,7 @@ export function PresentationList() {
     <section className="space-y-5" aria-labelledby="presentations-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="presentations-heading" className="text-xl font-semibold flex items-center gap-2"><PresentationIcon className="size-6 text-primary" aria-hidden /> Prezentacje</h2>
+          <h1 id="presentations-heading" className="text-2xl font-semibold flex items-center gap-2"><PresentationIcon className="size-6 text-primary" aria-hidden /> Prezentacje</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Zapisz tekst, sprawdź szacowany czas czytania i prezentuj z podglądem tempa i oddechu — podczas próby lub wystąpienia.
           </p>
@@ -48,7 +48,7 @@ export function PresentationList() {
                   </div>
                   <div className="mt-auto flex flex-wrap gap-2 pt-1">
                     <Button size="sm" asChild>
-                      <Link to={`/presentations/${p.id}/rehearse`}><Mic className="size-4" aria-hidden /> Prezentuj</Link>
+                      <Link to={`/presentations/${p.id}/rehearse?start=1`}><Mic className="size-4" aria-hidden /> Prezentuj</Link>
                     </Button>
                     <Button size="sm" variant="outline" asChild>
                       <Link to={`/presentations/${p.id}`} aria-label={`Edytuj prezentację ${p.title}`}><Pencil className="size-4" aria-hidden /> Edytuj</Link>

@@ -14,14 +14,17 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   Edytor pozwala stosować pogrubienie, kursywę, dwa poziomy nagłówków, listy punktowane i numerowane
   oraz akapity. Podgląd i tekst podczas próby zachowują formatowanie, również po ponownym otwarciu.
   Limit 20 000 znaków i statystyki dotyczą samego tekstu, bez znaczników formatowania.
+  Przyciski „Zapisz” i „Zapisz i prezentuj” są nieaktywne do uzupełnienia tytułu i treści wystąpienia.
   Wklejanie zachowuje obsługiwane formatowanie, pomijając obce style, obrazki i inne niedozwolone elementy.
   Zmiana przekraczająca limit nie jest wprowadzana; edytor wyświetla komunikat bez obcinania tekstu.
   Starsze prezentacje można nadal otwierać i edytować. Raporty sesji zachowują zwykły tekst wystąpienia.
   Przycisk „Historia” przy każdej prezentacji pokazuje wszystkie jej próby, od najnowszej, z datą,
   czasem trwania, tempem i przejściem do raportu. Tytuł prezentacji jest tylko w nagłówku;
   poszczególne próby wyróżnia data i godzina nagrania. Historia jest też dostępna z raportu próby.
-- **Prezentowanie**: przycisk „Prezentuj” otwiera tekst do czytania na głos podczas próby lub właściwego
-  wystąpienia. W edytorze służy do tego „Zapisz i prezentuj”, a w raporcie „Prezentuj ponownie”.
+- **Prezentowanie**: przycisk „Prezentuj” od razu uruchamia mikrofon i widok prezentacji, bez dodatkowego
+  rozpoczynania nagrania. Tak samo działają „Zapisz i prezentuj” w edytorze i „Prezentuj ponownie” w raporcie.
+  Przy pierwszym uruchomieniu przeglądarka może poprosić o dostęp do mikrofonu.
+  Kliknięcie tytułu w bibliotece otwiera sam podgląd, bez nagrywania.
   Każda sesja jest zapisywana i powiązana z prezentacją.
   Tekst podczas prezentowania zachowuje oryginalne podziały wierszy i puste linie.
   Domyślnie przewija się automatycznie zgodnie z postępem szacowanym z wykrytych sylab,
@@ -45,18 +48,25 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   Żółte ostrzeżenie oddechu zmienia ramkę na żółtą, a czerwony alarm tempa lub oddechu ma pierwszeństwo.
   Tempo ma osobny kolorowy panel z dużą wartością i wyraźnym statusem.
   Obok niego stale widoczny jest panel oddechu, również podczas uruchamiania i kalibracji mikrofonu.
+  Na telefonie dolny panel diagnostyczny jest ukryty bez pozostawiania pustej ramki;
+  ostrzeżenia o szumie i przesterowaniu pozostają widoczne.
   Panele mają stały układ, a zmiany komunikatów nie przesuwają tekstu. Ostrzeżenia oddechu zmieniają
   kolor bez pulsowania; pasek i licznik pokazują czas mówienia bez pauzy.
   Paski przewijania są wąskie i dopasowane do motywu; w ramce treningu są odsunięte od jej krawędzi.
+  Na telefonie aktywna prezentacja mieści się w wysokości ekranu: tempo, oddech i przycisk „Zakończ”
+  pozostają widoczne, a przewija się tylko tekst. Nagłówek aplikacji, opisy i wykres są wtedy ukryte;
+  ostrzeżenia mikrofonu nadal są dostępne. Układ dopasowuje się do pasków przeglądarki i obrotu telefonu.
   Spacja rozpoczyna i kończy nagranie podczas próby i kalibracji; podpowiedź jest widoczna przy przycisku.
   Skrót nie działa podczas pisania, obsługi innych kontrolek ani uruchamiania mikrofonu i analizy nagrania.
 - **Kalibracja**: minuta czytania znanego tekstu dopasowuje pomiar do głosu i mikrofonu.
 - **Raport sesji**: tempo mowy, liczba oddechów, najdłuższa fraza bez oddechu, krótkie wskazówki z odsłuchem
   fragmentu, oś czasu (fale, frazy i pauzy oddechowe, tempo każdej frazy) oraz tabela fraz.
   Oś czasu przewija się automatycznie podczas odsłuchu, utrzymując wskaźnik czasu w widocznym obszarze.
-- **Strona główna**: biblioteka prezentacji z dodawaniem, edycją i uruchamianiem prób, a poniżej historia sesji.
-  Kalibracja jest dostępna z nagłówka pulpitu. Dawny adres `/presentations` przekierowuje na pulpit.
-- **Historia sesji**: na stronie głównej i w historii prezentacji lista pokazuje po 10 sesji na stronę,
+- **Nawigacja**: trzy główne zakładki – „Swobodne mówienie” (`/speaking`), „Prezentacje” (`/presentations`)
+  i „Historia” (`/history`). Na telefonie są w pasku na dole ekranu (logo, Kalibracja, Ustawienia i motyw
+  w wąskim pasku u góry), na komputerze w bocznym panelu po lewej. Strona główna `/` otwiera „Swobodne mówienie”.
+  Podczas nagrywania pasek zakładek na telefonie jest ukryty, a pełnoekranowa prezentacja ukrywa całą nawigację.
+- **Historia sesji**: w zakładce „Historia” i w historii prezentacji lista pokazuje po 10 sesji na stronę,
   od najnowszej. Przyciski „Poprzednia” i „Następna” pozwalają przeglądać całą historię.
   Kosz przy sesji pozwala trwale usunąć ją wraz z nagraniem po potwierdzeniu, bez usuwania prezentacji
   ani zapisanej kalibracji.
@@ -150,7 +160,7 @@ scripts/            kopiowanie zasobów WASM i VAD
 src/audio/          mikrofon, worklet, VAD, analiza na żywo, dekodowanie
 src/engine/         analiza: segmentacja, jądra sylab, frazy, pauzy, tempo, wskazówki
 src/lib/            zapis i przeliczanie sesji, sygnał oddechu, motyw, etykiety
-src/pages/          pulpit, prezentacje (lista, edytor, próba), swobodne mówienie, kalibracja, raport, ustawienia
+src/pages/          zakładki (swobodne mówienie, prezentacje, historia), edytor i próba prezentacji, kalibracja, raport, ustawienia
 src/components/     HUD, raport, komponenty UI
 src/data/           tekst kalibracyjny (treść autorska)
 ```

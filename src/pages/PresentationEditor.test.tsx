@@ -59,10 +59,25 @@ async function mount() {
   return element.editor;
 }
 
-function clickSave(label = 'Zapisz') {
+function saveButton(label = 'Zapisz') {
   const button = Array.from(host.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === label);
   if (!button) throw new Error(`Missing button: ${label}`);
-  button.click();
+  return button;
+}
+
+function clickSave(label = 'Zapisz') {
+  saveButton(label).click();
+}
+
+function setTitle(value: string) {
+  const title = host.querySelector<HTMLInputElement>('#title')!;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, value);
+  title.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function expectSaveDisabled(disabled: boolean) {
+  expect(saveButton().disabled).toBe(disabled);
+  expect(saveButton('Zapisz i prezentuj').disabled).toBe(disabled);
 }
 
 describe('presentation deletion confirmation', () => {
@@ -84,7 +99,7 @@ describe('presentation deletion confirmation', () => {
     await act(async () => clickSave('Usuń'));
     await act(async () => dialogButton('Usuń prezentację').click());
     expect(mocks.remove).toHaveBeenCalledExactlyOnceWith('p1');
-    expect(mocks.navigate).toHaveBeenCalledWith('/');
+    expect(mocks.navigate).toHaveBeenCalledWith('/presentations');
   });
 
   it('keeps the editor and dialog open when deletion fails', async () => {
@@ -116,7 +131,7 @@ describe('presentation editor persistence', () => {
     expect(presentationText('', stored.document)).toBe(stored.text);
     expect(stored.createdAt).toBe(1);
     expect(stored).not.toHaveProperty('targetDurationSeconds');
-    expect(mocks.navigate).toHaveBeenCalledWith('/');
+    expect(mocks.navigate).toHaveBeenCalledWith('/presentations');
 
     await act(async () => root.unmount());
     root = createRoot(host);
@@ -129,9 +144,7 @@ describe('presentation editor persistence', () => {
     mocks.id = 'new';
     const editor = await mount();
     await act(async () => {
-      const title = host.querySelector<HTMLInputElement>('#title')!;
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, 'Nowa prezentacja');
-      title.dispatchEvent(new Event('input', { bubbles: true }));
+      setTitle('Nowa prezentacja');
       editor.commands.insertContent('<h2>Wstęp</h2><p><strong>Dzień dobry</strong></p>');
     });
     await act(async () => clickSave('Zapisz i prezentuj'));
@@ -139,7 +152,7 @@ describe('presentation editor persistence', () => {
     expect(stored.text).toBe('Wstęp\nDzień dobry');
     expect(stored.document).toEqual({ version: 1, content: editor.getJSON() });
     expect(stored).not.toHaveProperty('targetDurationSeconds');
-    expect(mocks.navigate).toHaveBeenCalledWith(`/presentations/${stored.id}/rehearse`);
+    expect(mocks.navigate).toHaveBeenCalledWith(`/presentations/${stored.id}/rehearse?start=1`);
   });
 
   it('shows an estimate instead of a manual time input and updates it while editing', async () => {
@@ -163,20 +176,56 @@ describe('presentation editor persistence', () => {
     expect(host.textContent).toContain(`przekracza limit ${MAX_PRESENTATION_CHARS}`);
   });
 
-  it('rejects empty documents and titles', async () => {
+  it.each(['new', 'p1'])('disables both save actions until title and text are filled (%s)', async (id) => {
+    mocks.id = id;
+    stored.title = '';
     stored.text = '';
-    await mount();
-    await act(async () => clickSave());
+    const editor = await mount();
+    expectSaveDisabled(true);
+
+    await act(async () => setTitle('Tytuł'));
+    expectSaveDisabled(true);
+    await act(async () => { editor.commands.setContent(documentFromText(' \n\t ').content); });
+    expectSaveDisabled(true);
+    await act(async () => { editor.commands.setContent(documentFromText('...').content); });
+    expectSaveDisabled(true);
+    await act(async () => { editor.commands.setContent(documentFromText('Tekst').content); });
+    expectSaveDisabled(false);
+
+    await act(async () => setTitle(' \t '));
+    expectSaveDisabled(true);
+    await act(async () => {
+      clickSave();
+      clickSave('Zapisz i prezentuj');
+    });
     expect(mocks.save).not.toHaveBeenCalled();
-    expect(host.textContent).toContain('Wpisz tekst prezentacji.');
-    await act(async () => root.unmount());
-    root = createRoot(host);
-    stored.title = ' ';
-    stored.text = 'Tekst';
-    await mount();
-    await act(async () => clickSave());
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    await act(async () => setTitle('Tytuł'));
+    expectSaveDisabled(false);
+    await act(async () => { editor.commands.clearContent(); });
+    expectSaveDisabled(true);
+    await act(async () => {
+      clickSave();
+      clickSave('Zapisz i prezentuj');
+    });
     expect(mocks.save).not.toHaveBeenCalled();
-    expect(host.textContent).toContain('Podaj tytuł prezentacji.');
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it('disables both save actions while saving', async () => {
+    let finishSave!: () => void;
+    mocks.save.mockImplementationOnce(() => new Promise<void>((resolve) => { finishSave = resolve; }));
+    await mount();
+    expectSaveDisabled(false);
+    await act(async () => clickSave());
+    expectSaveDisabled(true);
+    await act(async () => {
+      clickSave();
+      clickSave('Zapisz i prezentuj');
+    });
+    expect(mocks.save).toHaveBeenCalledOnce();
+    await act(async () => finishSave());
   });
 
   it('restores editing and displays the save error without losing the document', async () => {
@@ -188,5 +237,6 @@ describe('presentation editor persistence', () => {
     expect(editor.isEditable).toBe(true);
     expect(editor.getJSON()).toEqual(stored.document.content);
     expect(mocks.navigate).not.toHaveBeenCalled();
+    expectSaveDisabled(false);
   });
 });

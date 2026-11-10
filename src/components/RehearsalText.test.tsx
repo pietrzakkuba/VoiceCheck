@@ -97,7 +97,7 @@ describe('rehearsal text auto-scroll', () => {
 
   it('insets the scroll viewport inside a clipped frame without changing its scroll target', () => {
     const html = renderText(3);
-    expect(html).toContain('<div class="overflow-hidden rounded-[inherit] p-1 text-card-foreground"><div class="max-h-[65vh] overflow-y-auto');
+    expect(html).toContain('<div class="rehearsal-text overflow-hidden rounded-[inherit] p-1 text-card-foreground"><div class="rehearsal-viewport max-h-[65vh] overflow-y-auto');
     expect(html).toContain('focus-visible:-outline-offset-2');
     expect(html).toContain('[scrollbar-gutter:stable]');
     expect(mocks.viewport.scrollTop).toBe(225);

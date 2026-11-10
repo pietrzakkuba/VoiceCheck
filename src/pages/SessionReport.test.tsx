@@ -49,16 +49,16 @@ beforeEach(() => {
 });
 
 describe('session report reading time', () => {
-  it.each(['presentation', 'free_speech', 'calibration'] as const)('provides a way home from %s reports', (mode) => {
+  it.each(['presentation', 'free_speech', 'calibration'] as const)('links back to the history tab from %s reports', (mode) => {
     mocks.session!.mode = mode;
     const html = renderReport();
-    expect(html).toMatch(/href="\/"[^>]*>.*?Strona główna<\/a>/);
-    expect(html.indexOf('Strona główna')).toBeLessThan(html.indexOf('Raport sesji'));
+    expect(html).toMatch(/href="\/history"[^>]*>.*?Historia<\/a>/);
+    expect(html.indexOf('href="/history"')).toBeLessThan(html.indexOf('Raport sesji'));
   });
 
   it('links back to presenting with a neutral action label', () => {
     const html = renderReport();
-    expect(html).toContain('href="/presentations/p1/rehearse"');
+    expect(html).toContain('href="/presentations/p1/rehearse?start=1"');
     expect(html).toContain('Prezentuj ponownie</a>');
     expect(html).not.toContain('Ćwicz ponownie');
   });
@@ -99,7 +99,7 @@ describe('session report reading time', () => {
       return found;
     }
 
-    it('cancels without changes and navigates home only after confirmed deletion', async () => {
+    it('cancels without changes and returns to the history tab only after confirmed deletion', async () => {
       await mount();
       expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Ta sesja i jej nagranie zostaną usunięte.');
       expect(deleteSession).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('session report reading time', () => {
       await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Usuń sesję"]')!.click());
       await act(async () => dialogButton('Usuń sesję').click());
       expect(deleteSession).toHaveBeenCalledExactlyOnceWith('s1');
-      expect(host.querySelector('[data-location]')?.textContent).toBe('/');
+      expect(host.querySelector('[data-location]')?.textContent).toBe('/history');
     });
 
     it('stays on the report and shows an error when deletion fails', async () => {

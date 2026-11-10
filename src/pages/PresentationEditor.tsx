@@ -43,6 +43,7 @@ export default function PresentationEditor() {
   }, [id, isNew]);
 
   const stats = useMemo(() => textStats(text, target), [text, target]);
+  const canSave = !saving && title.trim().length > 0 && stats.words > 0;
 
   const save = async (rehearse = false) => {
     if (!title.trim()) return setError('Podaj tytuł prezentacji.');
@@ -61,7 +62,7 @@ export default function PresentationEditor() {
     };
     try {
       await savePresentation(p);
-      nav(rehearse ? `/presentations/${p.id}/rehearse` : '/');
+      nav(rehearse ? `/presentations/${p.id}/rehearse?start=1` : '/presentations');
     } catch {
       setError('Nie udało się zapisać prezentacji.');
       setSaving(false);
@@ -71,7 +72,7 @@ export default function PresentationEditor() {
   const remove = async () => {
     if (!original) return;
     await deletePresentation(original.id);
-    nav('/');
+    nav('/presentations');
   };
 
   if (original === undefined) {
@@ -86,7 +87,7 @@ export default function PresentationEditor() {
     return (
       <div className="space-y-4">
         <Alert variant="warn">Nie znaleziono tej prezentacji – mogła zostać usunięta.</Alert>
-        <Button variant="outline" asChild><Link to="/"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
+        <Button variant="outline" asChild><Link to="/presentations"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
       </div>
     );
   }
@@ -94,7 +95,7 @@ export default function PresentationEditor() {
   return (
     <div className="space-y-5">
       <div>
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+        <Link to="/presentations" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-4" aria-hidden /> Prezentacje
         </Link>
         <h1 className="text-2xl font-semibold mt-1">{isNew ? 'Nowa prezentacja' : 'Edycja prezentacji'}</h1>
@@ -124,13 +125,13 @@ export default function PresentationEditor() {
       </Card>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => void save(true)} disabled={saving}>
+        <Button onClick={() => void save(true)} disabled={!canSave}>
           {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mic className="size-4" aria-hidden />} Zapisz i prezentuj
         </Button>
-        <Button variant="outline" onClick={() => void save()} disabled={saving}>
+        <Button variant="outline" onClick={() => void save()} disabled={!canSave}>
           <Save className="size-4" aria-hidden /> Zapisz
         </Button>
-        <Button variant="ghost" asChild><Link to="/">Anuluj</Link></Button>
+        <Button variant="ghost" asChild><Link to="/presentations">Anuluj</Link></Button>
         {original && (
           <ConfirmDialog
             title="Usunąć prezentację?"

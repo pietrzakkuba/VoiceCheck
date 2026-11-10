@@ -27,7 +27,7 @@ export default function PresentationHistory() {
     return (
       <div className="space-y-4">
         <Alert variant="warn">Nie znaleziono tej prezentacji – mogła zostać usunięta.</Alert>
-        <Button variant="outline" asChild><Link to="/"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
+        <Button variant="outline" asChild><Link to="/presentations"><ArrowLeft className="size-4" aria-hidden /> Wróć do listy</Link></Button>
       </div>
     );
   }
@@ -35,7 +35,7 @@ export default function PresentationHistory() {
   const { presentation, sessions } = data;
   return (
     <div className="space-y-5">
-      <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+      <Link to="/presentations" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
         <ArrowLeft className="size-4" aria-hidden /> Prezentacje
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -43,7 +43,7 @@ export default function PresentationHistory() {
           <h1 className="text-2xl font-semibold flex items-center gap-2"><History className="size-6 shrink-0 text-primary" aria-hidden /> Historia prezentacji</h1>
           <p className="text-muted-foreground mt-1 break-words">{presentation.title}</p>
         </div>
-        <Button asChild><Link to={`/presentations/${presentation.id}/rehearse`}><Mic className="size-4" aria-hidden /> Prezentuj</Link></Button>
+        <Button asChild><Link to={`/presentations/${presentation.id}/rehearse?start=1`}><Mic className="size-4" aria-hidden /> Prezentuj</Link></Button>
       </div>
       <Card>
         <CardHeader>

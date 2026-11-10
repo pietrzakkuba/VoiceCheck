@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act } from 'react';
+import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { LiveStats } from '@/audio/liveAnalyzer';
@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   stats: null as LiveStats | null,
   presentation: undefined as Presentation | null | undefined,
   start: vi.fn(),
+  searchParams: new URLSearchParams(),
+  setSearchParams: vi.fn(),
+  error: null as string | null,
   autoScroll: true,
   maxBreathSeconds: 8,
   setSettings: vi.fn(),
@@ -65,6 +68,7 @@ vi.mock('@/components/RehearsalText', async (importOriginal) => {
 vi.mock('react-router', () => ({
   useNavigate: () => vi.fn(),
   useParams: () => ({ id: 'p1' }),
+  useSearchParams: () => [mocks.searchParams, mocks.setSearchParams],
   Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
 }));
 vi.mock('dexie-react-hooks', () => ({
@@ -74,18 +78,17 @@ vi.mock('@/hooks/useTrainingSession', () => ({
   useTrainingSession: () => ({
     phase: mocks.phase,
     stats: mocks.stats,
-    error: null,
+    error: mocks.error,
     deviceWarning: null,
     start: mocks.start,
   }),
 }));
 vi.mock('@/components/audio/LiveHud', () => ({
-  RecordControls: ({ onStart }: { onStart: () => void }) => {
-    onStart();
-    return <button>Nagrywanie</button>;
-  },
+  RecordControls: ({ onStart, disabled }: { onStart: () => void; disabled?: boolean }) => (
+    <button onClick={onStart} disabled={disabled}>Nagrywanie</button>
+  ),
   HudCard: () => <div>Live HUD</div>,
-  SessionErrors: () => null,
+  SessionErrors: ({ error }: { error: string | null }) => error ? <div role="alert">{error}</div> : null,
 }));
 
 function liveStats(rate: number | null, calibrating = false): LiveStats {
@@ -120,6 +123,9 @@ describe('presentation rehearsal', () => {
     mocks.stats = null;
     mocks.presentation = PRESENTATION;
     mocks.start.mockClear();
+    mocks.searchParams = new URLSearchParams();
+    mocks.setSearchParams.mockReset();
+    mocks.error = null;
     mocks.autoScroll = DEFAULT_SETTINGS.readingAutoScroll;
     mocks.maxBreathSeconds = DEFAULT_SETTINGS.maxContinuousSpeechSeconds;
     mocks.toggleScroll = undefined;
@@ -143,11 +149,82 @@ describe('presentation rehearsal', () => {
     expect(html).not.toContain('Live HUD');
   });
 
-  it('records the session as a rehearsal of this presentation', () => {
-    renderToStaticMarkup(<PresentationRehearsal />);
+  async function renderPage() {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    const host = document.createElement('div');
+    root = createRoot(host);
+    await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+    return host;
+  }
+
+  it('records the session as a rehearsal of this presentation after a manual start', async () => {
+    const host = await renderPage();
+    expect(mocks.start).not.toHaveBeenCalled();
+    await act(async () => host.querySelector<HTMLButtonElement>('.rehearsal-controls button')!.click());
     expect(mocks.start).toHaveBeenCalledWith({
       mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1',
     });
+  });
+
+  it('starts presenting immediately once, even in Strict Mode, and consumes the start request', async () => {
+    mocks.searchParams = new URLSearchParams('start=1&other=value');
+    mocks.presentation = { ...PRESENTATION, text: 'Old text', document: documentFromText('  Treść wystąpienia.  ') };
+    await renderPage();
+    expect(mocks.start).toHaveBeenCalledExactlyOnceWith({
+      mode: 'presentation', targetText: 'Treść wystąpienia.', presentationId: 'p1',
+    });
+    expect(mocks.setSearchParams).toHaveBeenCalledTimes(1);
+    const [params, options] = mocks.setSearchParams.mock.calls[0];
+    expect(params.toString()).toBe('other=value');
+    expect(options).toEqual({ replace: true });
+    mocks.phase = 'recording';
+    await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+    expect(mocks.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the saved presentation to load before starting', async () => {
+    mocks.searchParams = new URLSearchParams('start=1');
+    mocks.presentation = undefined;
+    await renderPage();
+    expect(mocks.start).not.toHaveBeenCalled();
+    mocks.presentation = PRESENTATION;
+    await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+    expect(mocks.start).toHaveBeenCalledExactlyOnceWith({
+      mode: 'presentation', targetText: PRESENTATION.text, presentationId: 'p1',
+    });
+  });
+
+  it.each([null, { ...PRESENTATION, text: '   ' }])('does not auto-start a missing or empty presentation', async (presentation) => {
+    mocks.searchParams = new URLSearchParams('start=1');
+    mocks.presentation = presentation;
+    await renderPage();
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a failed auto-start until the user explicitly retries', async () => {
+    mocks.searchParams = new URLSearchParams('start=1');
+    const host = await renderPage();
+    mocks.phase = 'error';
+    mocks.error = 'Brak dostępu do mikrofonu.';
+    await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(mocks.error);
+    expect(mocks.start).toHaveBeenCalledTimes(1);
+    await act(async () => host.querySelector<HTMLButtonElement>('.rehearsal-controls button')!.click());
+    expect(mocks.start).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['starting', 'recording', 'processing'] as const)('uses the screen-fitting layout only while active during %s', (phase) => {
+    mocks.phase = phase;
+    const host = document.createElement('div');
+    host.innerHTML = renderToStaticMarkup(<PresentationRehearsal />);
+    const layout = host.querySelector('.presentation-rehearsal-active');
+    expect(layout).not.toBeNull();
+    expect(layout!.querySelector('.rehearsal-card .rehearsal-viewport')).not.toBeNull();
+    expect(layout!.querySelector('.rehearsal-indicators')?.textContent).toContain('Oddech');
+    expect(layout!.querySelector('.rehearsal-controls button')).not.toBeNull();
+    expect(layout!.querySelector('.rehearsal-settings [role="switch"]')).not.toBeNull();
+    mocks.phase = 'idle';
+    expect(renderToStaticMarkup(<PresentationRehearsal />)).not.toContain('presentation-rehearsal-active');
   });
 
   async function renderCopyButton() {
@@ -209,9 +286,7 @@ describe('presentation rehearsal', () => {
     expect(html).toContain('<li><p><strong>');
     expect(html).not.toContain('Formatowanie tekstu');
     expect(html).not.toContain('contenteditable');
-    expect(mocks.start).toHaveBeenCalledWith({
-      mode: 'presentation', targetText: 'Wstęp\nWażne', presentationId: 'p1',
-    });
+    expect(mocks.start).not.toHaveBeenCalled();
   });
 
   it.each(['idle', 'starting', 'recording', 'processing'] as const)('enables auto-scroll by default with a switch during %s', (phase) => {

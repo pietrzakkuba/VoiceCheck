@@ -60,7 +60,8 @@ describe('free speech', () => {
   it('explains the mode before recording without live panels', () => {
     const html = renderToStaticMarkup(<FreeSpeech />);
     expect(html).toContain('Swobodne mówienie');
-    expect(html).toContain('href="/"');
+    expect(html).not.toContain('Strona główna');
+    expect(html).not.toContain('recording-active');
     expect(html).not.toContain('Tempo czytania');
     expect(html).not.toContain('Live HUD');
   });
@@ -74,6 +75,7 @@ describe('free speech', () => {
     mocks.phase = 'recording';
     mocks.stats = { ...liveStats(7), breathState: 'warn', breathRunMs: 7000 };
     const html = renderToStaticMarkup(<FreeSpeech />);
+    expect(html).toContain('recording-active');
     expect(html).toContain('Tempo czytania');
     expect(html).toContain('<span role="status">Za szybko!</span>');
     expect(html).toContain('role="meter"');

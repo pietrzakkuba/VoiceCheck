@@ -77,7 +77,7 @@ describe('presentation history', () => {
     mocks.data = null;
     const html = renderHistory();
     expect(html).toContain('Nie znaleziono tej prezentacji');
-    expect(html).toContain('href="/"');
+    expect(html).toContain('href="/presentations"');
     expect(html).not.toContain('href="/presentations/p1/rehearse"');
   });
 
@@ -88,7 +88,7 @@ describe('presentation history', () => {
     expect(html).toContain('Kliknij „Prezentuj”, aby nagrać pierwszą sesję.');
     expect(html).toContain('Prezentuj</a>');
     expect(html).not.toContain('Ćwicz');
-    expect(html).toContain('href="/presentations/p1/rehearse"');
+    expect(html).toContain('href="/presentations/p1/rehearse?start=1"');
   });
 
   it('shows the first page with report links and metrics and counts all rehearsals', () => {

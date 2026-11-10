@@ -39,6 +39,7 @@ describe('presentation card layout', () => {
     expect(html).toContain(presentation.title);
     expect(html).toContain(presentation.text);
     expect(html).toContain('href="/presentations/long/rehearse"');
+    expect(html).toContain('href="/presentations/long/rehearse?start=1"');
     expect(html).toContain('Prezentuj</a>');
     expect(html).not.toContain('Ćwicz');
     expect(html).toContain('href="/presentations/long"');

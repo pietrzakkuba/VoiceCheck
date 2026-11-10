@@ -15,6 +15,7 @@ import { recomputeSession } from '@/lib/sessionPipeline';
 import { saveBaseline } from '@/store/db';
 import { useSettings } from '@/store/settings';
 import type { TrainingSession, UserBaseline } from '@/types';
+import { cn } from '@/lib/utils';
 
 const CALIBRATE_MS = 2000;
 
@@ -72,7 +73,7 @@ export default function Calibration() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className={cn('space-y-5', active && 'recording-active')}>
       <div>
         {!active && (
           <Button asChild variant="ghost" size="sm" className="-ml-3 h-9 text-muted-foreground">
@@ -115,7 +116,7 @@ export default function Calibration() {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => nav(`/session/${result.session.id}`)}>Zobacz raport</Button>
               <Button size="sm" variant="outline" onClick={start}>Powtórz kalibrację</Button>
-              <Button size="sm" variant="ghost" onClick={() => nav('/')}>Na pulpit</Button>
+              <Button size="sm" variant="ghost" onClick={() => nav('/')}>Strona główna</Button>
             </div>
           </div>
         </Alert>

@@ -1,5 +1,6 @@
-import { Link, useNavigate } from 'react-router';
-import { ArrowLeft, BookOpenText } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { BookOpenText } from 'lucide-react';
+import { CalibrationPrompt } from '@/components/CalibrationPrompt';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
 import { LivePacePanel, liveIndicators } from '@/components/audio/LivePacePanel';
@@ -23,14 +24,10 @@ export default function FreeSpeech() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className={cn('space-y-5', active && 'recording-active')}>
+      {!active && <CalibrationPrompt />}
       <div>
-        {!active && (
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-            <ArrowLeft className="size-4" aria-hidden /> Strona główna
-          </Link>
-        )}
-        <h1 className="text-2xl font-semibold flex items-center gap-2 mt-1"><BookOpenText className="size-6 text-primary" aria-hidden /> Swobodne mówienie</h1>
+        <h1 className="text-2xl font-semibold flex items-center gap-2"><BookOpenText className="size-6 text-primary" aria-hidden /> Swobodne mówienie</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Czytaj tekst z kartki, innego ekranu lub mów z pamięci. Aplikacja pilnuje tylko tempa i oddechu.
         </p>
