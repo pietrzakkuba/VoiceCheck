@@ -43,6 +43,7 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 - **Swobodne mówienie**: karta nad biblioteką prezentacji (adres `/speaking`) pozwala czytać tekst spoza
   aplikacji (kartka, inny ekran) lub mówić z pamięci. Aplikacja pokazuje wtedy tylko panele tempa i oddechu
   oraz licznik czasu (bez limitu); sesja trafia do historii z pełnym raportem.
+  Działa tu ten sam przełącznik „Nie wygaszaj ekranu” co w trybie prezentacji (wspólne ustawienie).
 - **Na żywo podczas nagrania**: panel tempa (sylaby/s), pasek oddechu, przebieg fali,
   ostrzeżenia o szumie i przesterowaniu. Po przekroczeniu limitu mówienia bez oddechu aplikacja odtwarza krótki
   dźwięk (i wibrację na telefonie).
@@ -75,6 +76,8 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
   ani zapisanej kalibracji.
   Przycisk „Usuń wszystkie sesje” wymaga potwierdzenia i usuwa też nagrania: w zakładce „Historia”
   całą historię, a w historii prezentacji tylko sesje tej prezentacji. Prezentacje i kalibracja pozostają.
+  Ekran „Swobodne mówienie” ma własną historię z usuwaniem pojedynczych lub wszystkich sesji tego trybu
+  wraz z nagraniami, bez naruszania sesji innych trybów. Historia jest ukryta podczas nagrywania i analizy.
 
 ## Jak to działa
 

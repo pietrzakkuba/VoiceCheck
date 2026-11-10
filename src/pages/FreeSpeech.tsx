@@ -1,11 +1,16 @@
 import { useNavigate } from 'react-router';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { BookOpenText } from 'lucide-react';
 import { CalibrationPrompt } from '@/components/CalibrationPrompt';
+import { KeepScreenAwakeToggle } from '@/components/KeepScreenAwakeToggle';
+import { DeleteSessionsButton } from '@/components/DeleteSessionsButton';
+import { SessionList } from '@/components/SessionList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HudCard, RecordControls, SessionErrors } from '@/components/audio/LiveHud';
 import { LivePacePanel, liveIndicators } from '@/components/audio/LivePacePanel';
 import { useTrainingSession } from '@/hooks/useTrainingSession';
 import { useSettings } from '@/store/settings';
+import { db } from '@/store/db';
 import { cn } from '@/lib/utils';
 
 /** Reading a text that is not stored in the app – only pace and breathing are tracked. */
@@ -13,6 +18,8 @@ export default function FreeSpeech() {
   const target = useSettings((s) => s.targetArticulationRate);
   const maxBreathSeconds = useSettings((s) => s.maxContinuousSpeechSeconds);
   const ts = useTrainingSession();
+  const allSessions = useLiveQuery(() => db.sessions.where({ mode: 'free_speech' }).reverse().sortBy('timestamp'), [], []);
+  const sessions = allSessions.filter((session) => session.schema === 2);
   const nav = useNavigate();
   const active = ts.phase === 'recording' || ts.phase === 'processing' || ts.phase === 'starting';
   const { frameColor } = liveIndicators(ts.phase, ts.stats, target);
@@ -54,11 +61,30 @@ export default function FreeSpeech() {
       )}
 
       <SessionErrors error={ts.error} deviceWarning={ts.deviceWarning} />
+      <KeepScreenAwakeToggle active={active} />
       <div className="flex items-center gap-3">
         <RecordControls phase={ts.phase} onStart={start} onStop={stop} />
         {ts.phase === 'recording' && <span className="text-sm text-muted-foreground">Mów naturalnie. Kliknij „Zakończ”, gdy skończysz.</span>}
       </div>
       {active && <HudCard stats={ts.stats} getDb={ts.getDb} getSpeaking={ts.getSpeaking} showBreath={false} />}
+      {!active && (
+        <Card>
+          <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <CardTitle>Historia swobodnego mówienia</CardTitle>
+              <CardDescription>{sessions.length} sesji · od najnowszej</CardDescription>
+            </div>
+            <DeleteSessionsButton scope={{ mode: 'free_speech' }} disabled={allSessions.length === 0} />
+          </CardHeader>
+          <CardContent>
+            {sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Brak sesji swobodnego mówienia. Rozpocznij nagranie, aby zapisać pierwszą sesję.</p>
+            ) : (
+              <SessionList sessions={sessions} titles={new Map()} />
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

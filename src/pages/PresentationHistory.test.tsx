@@ -156,7 +156,7 @@ describe('presentation history', () => {
       expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Wszystkie sesje tej prezentacji');
       const confirm = Array.from(document.querySelectorAll('[role="alertdialog"] button')).find((button) => button.textContent === 'Usuń wszystkie sesje') as HTMLButtonElement;
       await act(async () => confirm.click());
-      expect(deleteSessions).toHaveBeenCalledExactlyOnceWith('p1');
+      expect(deleteSessions).toHaveBeenCalledExactlyOnceWith({ presentationId: 'p1' });
       mocks.id = 'p2';
       mocks.data = { presentation: { ...presentation, id: 'p2' }, sessions: Array.from({ length: 11 }, (_, i) => session(`other${i}`)) };
       await render();

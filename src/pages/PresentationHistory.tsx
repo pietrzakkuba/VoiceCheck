@@ -45,7 +45,7 @@ export default function PresentationHistory() {
           <p className="text-muted-foreground mt-1 break-words">{presentation.title}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <DeleteSessionsButton presentationId={presentation.id} disabled={sessions.length === 0} />
+          <DeleteSessionsButton scope={{ presentationId: presentation.id }} disabled={sessions.length === 0} />
           <Button asChild><Link to={`/presentations/${presentation.id}/rehearse?start=1`}><Mic className="size-4" aria-hidden /> Prezentuj</Link></Button>
         </div>
       </div>

@@ -49,7 +49,7 @@ describe('session history queries', () => {
       expect(where).not.toHaveBeenCalled();
     });
 
-    it('deletes every session and recording of the requested presentation, without a schema or page filter', async () => {
+    it.each([{ presentationId: 'p1' }, { mode: 'free_speech' } as const])('deletes every matching session and recording without a schema or page filter: %j', async (scope) => {
       const collection = db.sessions.toCollection();
       const where = vi.spyOn(db.sessions, 'where').mockReturnValue(collection);
       vi.spyOn(collection, 'toArray').mockResolvedValue([
@@ -60,9 +60,9 @@ describe('session history queries', () => {
       const removeAudio = vi.spyOn(db.audio, 'bulkDelete').mockResolvedValue(undefined);
       const clearSessions = vi.spyOn(db.sessions, 'clear');
       const clearAudio = vi.spyOn(db.audio, 'clear');
-      await deleteSessions('p1');
+      await deleteSessions(scope);
       expect(db.transaction).toHaveBeenCalledWith('rw', db.sessions, db.audio, expect.any(Function));
-      expect(where).toHaveBeenCalledExactlyOnceWith({ presentationId: 'p1' });
+      expect(where).toHaveBeenCalledExactlyOnceWith(scope);
       expect(removeSessions).toHaveBeenCalledExactlyOnceWith(['s1', 'legacy']);
       expect(removeAudio).toHaveBeenCalledExactlyOnceWith(['audio-s1', 'audio-legacy']);
       expect(clearSessions).not.toHaveBeenCalled();

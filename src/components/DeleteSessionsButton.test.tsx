@@ -19,12 +19,12 @@ function button(text: string) {
 const click = async (target: HTMLElement) => { await act(async () => target.click()); };
 
 describe('bulk session deletion', () => {
-  it.each([undefined, 'p1'])('requires confirmation, supports cancellation and retries failures for scope %s', async (presentationId) => {
+  it.each([undefined, { presentationId: 'p1' }, { mode: 'free_speech' } as const])('requires confirmation, supports cancellation and retries failures for scope %j', async (scope) => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);
     try {
-      await act(async () => root.render(<DeleteSessionsButton presentationId={presentationId} disabled={false} />));
+      await act(async () => root.render(<DeleteSessionsButton scope={scope} disabled={false} />));
       const trigger = button('Usuń wszystkie sesje');
       await click(trigger);
       expect(deleteSessions).not.toHaveBeenCalled();
@@ -37,7 +37,7 @@ describe('bulk session deletion', () => {
       const confirm = document.querySelector<HTMLButtonElement>('[role="alertdialog"] button:last-child')!;
       await click(confirm);
       expect(document.querySelector('[role="alert"]')?.textContent).toBe('Nie udało się usunąć sesji. Spróbuj ponownie.');
-      expect(deleteSessions).toHaveBeenCalledExactlyOnceWith(presentationId);
+      expect(deleteSessions).toHaveBeenCalledExactlyOnceWith(scope);
 
       let finish!: () => void;
       vi.mocked(deleteSessions).mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));

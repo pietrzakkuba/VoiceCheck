@@ -87,14 +87,16 @@ export async function deleteSession(id: string) {
   });
 }
 
-/** Deletes all sessions and recordings, or only those belonging to one presentation. */
-export async function deleteSessions(presentationId?: string) {
+export type SessionScope = { presentationId: string } | { mode: 'free_speech' };
+
+/** Deletes all sessions and recordings, or only those matching the scope. */
+export async function deleteSessions(scope?: SessionScope) {
   await db.transaction('rw', db.sessions, db.audio, async () => {
-    if (presentationId === undefined) {
+    if (scope === undefined) {
       await db.sessions.clear();
       await db.audio.clear();
     } else {
-      const sessions = await db.sessions.where({ presentationId }).toArray();
+      const sessions = await db.sessions.where(scope).toArray();
       await db.sessions.bulkDelete(sessions.map((s) => s.id));
       await db.audio.bulkDelete(sessions.map((s) => s.audioKey));
     }
