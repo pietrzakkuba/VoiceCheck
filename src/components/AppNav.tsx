@@ -1,25 +1,23 @@
 import { Link, NavLink, useLocation } from 'react-router';
 import { AudioLines, BookOpenText, Crosshair, History, Presentation, Settings as SettingsIcon, type LucideIcon } from 'lucide-react';
-import { buttonVariants } from '@/components/ui/button';
-import { Tooltip } from '@/components/ui/overlay';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 
-export type TabId = 'speaking' | 'presentations' | 'history';
+export type TabId = 'speaking' | 'presentations' | 'history' | 'settings';
 
 export const TABS: { id: TabId; to: string; icon: LucideIcon }[] = [
   { id: 'speaking', to: '/speaking', icon: BookOpenText },
   { id: 'presentations', to: '/presentations', icon: Presentation },
   { id: 'history', to: '/history', icon: History },
+  { id: 'settings', to: '/settings', icon: SettingsIcon },
 ];
 
-export type SecondaryId = 'calibration' | 'settings';
+export type SecondaryId = 'calibration';
 
 export const SECONDARY: { id: SecondaryId; to: string; icon: LucideIcon }[] = [
   { id: 'calibration', to: '/calibration', icon: Crosshair },
-  { id: 'settings', to: '/settings', icon: SettingsIcon },
 ];
 
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
@@ -28,6 +26,7 @@ export function activeTab(pathname: string): TabId | null {
   if (under(pathname, '/speaking')) return 'speaking';
   if (under(pathname, '/presentations')) return 'presentations';
   if (under(pathname, '/history') || pathname.startsWith('/session/')) return 'history';
+  if (under(pathname, '/settings')) return 'settings';
   return null;
 }
 
@@ -40,7 +39,7 @@ function Logo() {
   );
 }
 
-/** Top bar on phones: logo + settings. Hidden on md+ where the sidebar takes over. */
+/** Top bar on phones: logo + theme. Hidden on md+ where the sidebar takes over. */
 export function MobileHeader() {
   const t = useT();
   return (
@@ -48,20 +47,7 @@ export function MobileHeader() {
       <div className="px-4 min-h-14 py-2 flex items-center gap-2">
         <Logo />
         <nav className="ml-auto flex items-center gap-1" aria-label={t.nav.tools}>
-          {SECONDARY.filter(({ id }) => id === 'settings').map(({ id, to, icon: Icon }) => (
-            <Tooltip key={to} content={t.nav.secondary[id]}>
-              <NavLink
-                to={to}
-                aria-label={t.nav.secondary[id]}
-                className={cn(
-                  buttonVariants({ variant: 'ghost', size: 'icon' }),
-                  'text-muted-foreground aria-[current=page]:bg-accent aria-[current=page]:text-foreground',
-                )}
-              >
-                <Icon className="size-4" aria-hidden />
-              </NavLink>
-            </Tooltip>
-          ))}
+          <ThemeSwitch />
         </nav>
       </div>
     </header>
@@ -77,7 +63,7 @@ export function BottomTabBar() {
       aria-label={t.nav.main}
       className="app-tabbar fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <ul className="grid grid-cols-3">
+      <ul className="grid grid-cols-4">
         {TABS.map(({ id, to, icon: Icon }) => {
           const active = current === id;
           return (

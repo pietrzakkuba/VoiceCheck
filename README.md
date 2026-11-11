@@ -79,9 +79,12 @@ w całości w przeglądarce, bez modeli AI – nagrania i historia sesji nie opu
 - **Raport sesji**: tempo mowy, liczba oddechów, najdłuższa fraza bez oddechu, krótkie wskazówki z odsłuchem
   fragmentu, oś czasu (fale, frazy i pauzy oddechowe, tempo każdej frazy) oraz tabela fraz.
   Oś czasu przewija się automatycznie podczas odsłuchu, utrzymując wskaźnik czasu w widocznym obszarze.
-- **Nawigacja**: trzy główne zakładki – „Swobodne mówienie” (`/speaking`), „Prezentacje” (`/presentations`)
-  i „Historia” (`/history`). Na telefonie są w pasku na dole ekranu (logo, Kalibracja, Ustawienia i motyw
-  w wąskim pasku u góry), na komputerze w bocznym panelu po lewej. Strona główna `/` otwiera „Swobodne mówienie”.
+- **Nawigacja**: cztery główne zakładki – „Swobodne mówienie” (`/speaking`), „Prezentacje” (`/presentations`),
+  „Historia” (`/history`) i „Ustawienia” (`/settings`). Na telefonie są w pasku na dole ekranu,
+  a logo i przełącznik motywu w wąskim pasku u góry. Na komputerze zakładki są w bocznym panelu po lewej,
+  z Kalibracją oraz przełącznikami języka i motywu w dolnej sekcji. Na telefonie Kalibracja jest dostępna
+  z Ustawień. Przełącznik motywu pozostaje też w Ustawieniach.
+  Strona główna `/` otwiera „Swobodne mówienie”.
   Podczas nagrywania pasek zakładek na telefonie jest ukryty, a pełnoekranowa prezentacja ukrywa całą nawigację.
 - **Historia sesji**: w zakładce „Historia” i w historii prezentacji lista pokazuje po 10 sesji na stronę,
   od najnowszej. Przyciski „Poprzednia” i „Następna” pozwalają przeglądać całą historię.
