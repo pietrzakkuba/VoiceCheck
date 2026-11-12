@@ -415,11 +415,13 @@ mobile rehearsal, CSS keeps feedback and stop controls visible while the
 script viewport scrolls. [`useMobileLayout`](../src/hooks/useMobileLayout.ts)
 also accounts for short coarse-pointer landscape layouts.
 
-Automatic script scrolling and screen wake lock are desktop behaviors.
+Automatic script scrolling is a desktop behavior. During presentation rehearsal,
+screen wake lock is automatic on mobile; desktop uses the saved toggle preference.
 [`useWakeLock`](../src/hooks/useWakeLock.ts) requests a screen lock while enabled,
 reacquires it when the page becomes visible and releases it on cleanup.
-Unsupported or rejected requests have explicit status; mobile layout disables
-the request without overwriting the saved desktop preference.
+Unsupported or rejected requests have explicit status, including a warning during
+mobile presentation. Mobile rehearsal does not overwrite the desktop preference.
+Free speech retains its desktop-only wake lock option.
 
 ## 11. Build, deployment and PWA
 

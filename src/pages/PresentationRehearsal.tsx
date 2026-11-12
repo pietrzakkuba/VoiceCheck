@@ -110,8 +110,8 @@ export default function PresentationRehearsal() {
         </p>
       </div>
 
-      {!mobile && (
-        <div className="rehearsal-settings flex flex-wrap items-center gap-x-8 gap-y-3">
+      <div className={mobile ? undefined : 'rehearsal-settings flex flex-wrap items-center gap-x-8 gap-y-3'}>
+        {!mobile && (
           <div className="flex min-w-60 flex-1 items-center justify-between gap-4">
             <div>
               <Label htmlFor="reading-auto-scroll">{t.presentations.rehearsal.autoScroll}</Label>
@@ -121,9 +121,9 @@ export default function PresentationRehearsal() {
             </div>
             <Switch id="reading-auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} aria-describedby="reading-auto-scroll-description" />
           </div>
-          <KeepScreenAwakeToggle active={active} className="min-w-60 flex-1" />
-        </div>
-      )}
+        )}
+        <KeepScreenAwakeToggle active={active} wakeOnMobile className="min-w-60 flex-1" />
+      </div>
 
       {!active && (
         <Card>

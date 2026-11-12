@@ -427,12 +427,14 @@ i zakończenie nagrania, a przewija się obszar tekstu.
 [`useMobileLayout`](../src/hooks/useMobileLayout.ts) uwzględnia też niski
 układ poziomy urządzeń ze zgrubnym wskaźnikiem dotykowym.
 
-Automatyczne przewijanie tekstu i blokada wygaszania ekranu działają
-w układzie komputerowym. [`useWakeLock`](../src/hooks/useWakeLock.ts)
+Automatyczne przewijanie tekstu działa w układzie komputerowym. Podczas próby
+prezentacji blokada wygaszania ekranu jest automatyczna na telefonie;
+na komputerze zależy od zapamiętanego przełącznika. [`useWakeLock`](../src/hooks/useWakeLock.ts)
 żąda blokady ekranu, gdy jest włączona, ponawia ją po odzyskaniu widoczności
 strony i zwalnia przy sprzątaniu zasobów. Brak obsługi lub odrzucenie żądania
-ma jawny status; układ mobilny wyłącza żądanie bez nadpisywania zapamiętanej
-preferencji komputerowej.
+ma jawny status, w tym ostrzeżenie podczas prezentacji mobilnej. Próba mobilna
+nie nadpisuje preferencji komputerowej. Tryb swobodnej wypowiedzi zachowuje
+blokadę ekranu tylko w układzie komputerowym.
 
 ## 11. Budowanie, wdrożenie i PWA
 

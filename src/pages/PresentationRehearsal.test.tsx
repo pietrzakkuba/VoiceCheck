@@ -423,13 +423,16 @@ describe('presentation rehearsal', () => {
       delete (navigator as { wakeLock?: unknown }).wakeLock;
     });
 
-    it('never locks on mobile, restores desktop options and releases the lock on returning to mobile', async () => {
+    it('keeps the lock across layout changes without changing desktop preferences', async () => {
       const setMobile = installMobileLayout(true);
       const { request, sentinels } = installWakeLock();
       mocks.phase = 'recording';
       mocks.stats = liveStats(5);
       const host = await renderPage();
-      expect(request).not.toHaveBeenCalled();
+      expect(request).toHaveBeenCalledWith('screen');
+      const calls = request.mock.calls.length;
+      const active = sentinels.filter((sentinel) => !sentinel.released);
+      expect(active).toHaveLength(1);
       expect(mocks.readingProps?.autoScroll).toBe(false);
 
       await act(async () => setMobile(false));
@@ -442,8 +445,56 @@ describe('presentation rehearsal', () => {
       await act(async () => setMobile(true));
       expect(host.querySelector('.rehearsal-settings')).toBeNull();
       expect(mocks.readingProps?.autoScroll).toBe(false);
-      expect(sentinels.every((sentinel) => sentinel.released)).toBe(true);
+      expect(request).toHaveBeenCalledTimes(calls);
+      expect(active[0].released).toBe(false);
       expect(mocks.setSettings).not.toHaveBeenCalled();
+    });
+
+    it.each(['starting', 'recording', 'processing'] as const)('automatically locks on mobile during %s even with the desktop option off', async (phase) => {
+      installMobileLayout(true);
+      mocks.keepAwake = false;
+      const { request, sentinels } = installWakeLock();
+      const host = await renderPage();
+      expect(request).not.toHaveBeenCalled();
+      mocks.phase = phase;
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(request).toHaveBeenCalledWith('screen');
+      expect(sentinels.filter((sentinel) => !sentinel.released)).toHaveLength(1);
+      expect(host.querySelector('#keep-screen-awake')).toBeNull();
+      expect(mocks.setSettings).not.toHaveBeenCalled();
+      mocks.phase = 'idle';
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(sentinels.every((sentinel) => sentinel.released)).toBe(true);
+    });
+
+    it('releases the mobile lock when leaving the presentation', async () => {
+      installMobileLayout(true);
+      const { sentinels } = installWakeLock();
+      mocks.phase = 'recording';
+      await renderPage();
+      expect(sentinels.some((sentinel) => !sentinel.released)).toBe(true);
+      await act(async () => root!.unmount());
+      root = undefined;
+      expect(sentinels.every((sentinel) => sentinel.released)).toBe(true);
+    });
+
+    it('reports rejected wake lock requests on mobile', async () => {
+      installMobileLayout(true);
+      const { request } = installWakeLock();
+      request.mockRejectedValue(new Error('Wake lock denied'));
+      mocks.phase = 'recording';
+      const host = await renderPage();
+      expect(host.textContent).toContain('Nie udało się zablokować wygaszania ekranu');
+    });
+
+    it('reports unsupported wake lock on mobile only during presentation', async () => {
+      installMobileLayout(true);
+      const host = await renderPage();
+      expect(host.textContent).not.toContain('nie obsługuje blokady wygaszania ekranu');
+      mocks.phase = 'recording';
+      await act(async () => root!.render(<StrictMode><PresentationRehearsal /></StrictMode>));
+      expect(host.textContent).toContain('nie obsługuje blokady wygaszania ekranu');
+      expect(host.querySelector('#keep-screen-awake')).toBeNull();
     });
 
     it('holds a screen wake lock only while presenting and releases it afterwards', async () => {
@@ -476,7 +527,8 @@ describe('presentation rehearsal', () => {
       expect(request).toHaveBeenCalledTimes(calls);
     });
 
-    it('re-acquires the lock when the page becomes visible again', async () => {
+    it.each([false, true])('re-acquires the lock when the page becomes visible again (mobile: %s)', async (mobile) => {
+      installMobileLayout(mobile);
       const { request, sentinels } = installWakeLock();
       mocks.phase = 'recording';
       await renderPage();
